@@ -1,0 +1,139 @@
+{
+  "name": "JD-GUI - Java Decompiler",
+  "short_name": "JD-GUI",
+  "description": "A collaborative Java Decompiler with real-time editing, multi-language syntax highlighting, and Vineflower decompiler",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAFA",
+  "theme_color": "#1976D2",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["developer tools", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "icons/icon-16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "JD-GUI Desktop View"
+    },
+    {
+      "src": "screenshots/mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "JD-GUI Mobile View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open File",
+      "short_name": "Open",
+      "description": "Open a JAR or CLASS file",
+      "url": "/?action=open",
+      "icons": [{ "src": "icons/open-file.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Watch Folder",
+      "short_name": "Watch",
+      "description": "Watch a folder for changes",
+      "url": "/?action=watch",
+      "icons": [{ "src": "icons/watch-folder.png", "sizes": "96x96" }]
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/java-archive": [".jar"],
+        "application/x-java-class": [".class"],
+        "application/zip": [".zip"]
+      }
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "file",
+          "accept": [".jar", ".class", ".zip"]
+        }
+      ]
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+jdgui",
+      "url": "/?uri=%s"
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=org.jd.gui"
+    },
+    {
+      "platform": "itunes",
+      "url": "https://apps.apple.com/app/jd-gui/id0000000000"
+    }
+  ],
+  "prefer_related_applications": false
+}

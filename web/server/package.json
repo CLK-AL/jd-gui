@@ -1,0 +1,45 @@
+{
+  "name": "jd-gui-collab-server",
+  "version": "2026.2.2",
+  "description": "JD-GUI Collaborative Editing Server with Hocuspocus/Yjs",
+  "main": "dist/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "eslint src/**/*.ts",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^2.11.0",
+    "@hocuspocus/extension-database": "^2.11.0",
+    "@hocuspocus/extension-logger": "^2.11.0",
+    "@hocuspocus/extension-monitor": "^2.11.0",
+    "@hocuspocus/extension-throttle": "^2.11.0",
+    "yjs": "^13.6.10",
+    "y-protocols": "^1.0.6",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ws": "^8.16.0",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.6",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.3",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.17.0",
+    "@typescript-eslint/parser": "^6.17.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "GPL-3.0"
+}

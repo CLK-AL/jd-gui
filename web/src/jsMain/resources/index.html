@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1976D2">
+    <meta name="description" content="JD-GUI - A collaborative Java Decompiler with real-time editing">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="JD-GUI">
+
+    <title>JD-GUI - Java Decompiler</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" data-name="vs/editor/editor.main"
+          href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1976D2;
+            --primary-dark: #0D47A1;
+            --secondary: #FF9800;
+            --background: #FAFAFA;
+            --surface: #FFFFFF;
+            --text: #212121;
+            --text-secondary: #616161;
+            --border: #E0E0E0;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 1rem;
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: rgba(255,255,255,0.9);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Main Content */
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .file-item:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .file-item.selected {
+            background: rgba(25, 118, 210, 0.1);
+            color: var(--primary);
+        }
+
+        .file-item .icon {
+            margin-right: 0.5rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Editor Container */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .editor-tabs {
+            display: flex;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 0.75rem 1rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 0.875rem;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            border-bottom-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .tab:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        #editor {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Collaboration Info */
+        .collab-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .collab-users {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.625rem;
+            font-weight: 500;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            :root {
+                --sidebar-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <h1>☕ JD-GUI</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" id="openFileBtn">📂 Open</button>
+                <button class="btn btn-secondary" id="saveBtn">💾 Save</button>
+                <button class="btn btn-secondary" id="shareBtn">🔗 Share</button>
+            </div>
+        </header>
+
+        <main class="main">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">Files</div>
+                <div class="file-tree" id="fileTree">
+                    <div class="loading">
+                        <span>Drop a JAR file here</span>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="editor-container">
+                <div class="editor-tabs" id="editorTabs">
+                    <button class="tab active">Welcome.java</button>
+                </div>
+                <div id="editor"></div>
+                <div class="collab-info">
+                    <span>Connected to collaboration server</span>
+                    <div class="collab-users" id="collabUsers"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+    <!-- Yjs for collaboration -->
+    <script src="https://cdn.jsdelivr.net/npm/yjs@13.6.10/dist/yjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/y-websocket@1.5.0/dist/y-websocket.cjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/y-monaco@0.1.5/dist/y-monaco.cjs"></script>
+
+    <script>
+        // Initialize Monaco Editor
+        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+
+        let editor;
+        let ydoc;
+        let provider;
+        let binding;
+
+        require(['vs/editor/editor.main'], function () {
+            // Create Monaco Editor
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: '// Welcome to JD-GUI Web\n// Open a JAR or CLASS file to start decompiling\n\npublic class Welcome {\n    public static void main(String[] args) {\n        System.out.println("Hello, JD-GUI!");\n    }\n}',
+                language: 'java',
+                theme: 'vs',
+                automaticLayout: true,
+                minimap: { enabled: true },
+                fontSize: 14,
+                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                wordWrap: 'off',
+                tabSize: 4,
+            });
+
+            // Initialize Yjs collaboration
+            initCollaboration('default-doc');
+        });
+
+        function initCollaboration(docName) {
+            // Create Yjs document
+            ydoc = new Y.Doc();
+
+            // Connect to Hocuspocus server
+            const wsUrl = window.location.protocol === 'https:'
+                ? `wss://${window.location.hostname}:3001`
+                : `ws://localhost:3001`;
+
+            provider = new Y.WebsocketProvider(wsUrl, docName, ydoc);
+
+            // Handle connection status
+            provider.on('status', (event) => {
+                const info = document.querySelector('.collab-info span');
+                if (event.status === 'connected') {
+                    info.textContent = 'Connected to collaboration server';
+                } else {
+                    info.textContent = 'Connecting...';
+                }
+            });
+
+            // Handle awareness (user cursors)
+            provider.awareness.setLocalStateField('user', {
+                name: 'User ' + Math.floor(Math.random() * 100),
+                color: getRandomColor(),
+            });
+
+            provider.awareness.on('change', updateUsers);
+
+            // Bind Monaco to Yjs
+            const ytext = ydoc.getText('content');
+            binding = new Y.MonacoBinding(ytext, editor.getModel(), new Set([editor]), provider.awareness);
+        }
+
+        function updateUsers() {
+            const usersDiv = document.getElementById('collabUsers');
+            usersDiv.innerHTML = '';
+
+            provider.awareness.getStates().forEach((state, clientId) => {
+                if (state.user) {
+                    const avatar = document.createElement('div');
+                    avatar.className = 'user-avatar';
+                    avatar.style.backgroundColor = state.user.color;
+                    avatar.textContent = state.user.name.charAt(0).toUpperCase();
+                    avatar.title = state.user.name;
+                    usersDiv.appendChild(avatar);
+                }
+            });
+        }
+
+        function getRandomColor() {
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // File handling
+        document.getElementById('openFileBtn').addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.jar,.class,.zip';
+            input.onchange = handleFileSelect;
+            input.click();
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                console.log('Selected file:', file.name);
+                // TODO: Implement file loading and decompilation
+            }
+        }
+
+        // Save button
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            const content = editor.getValue();
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Decompiled.java';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Share button
+        document.getElementById('shareBtn').addEventListener('click', () => {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Link copied to clipboard!');
+            });
+        });
+
+        // Drag and drop
+        const dropZone = document.getElementById('fileTree');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.background = 'rgba(25, 118, 210, 0.1)';
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.background = '';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.background = '';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect({ target: { files } });
+            }
+        });
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then((reg) => console.log('ServiceWorker registered:', reg.scope))
+                    .catch((err) => console.log('ServiceWorker registration failed:', err));
+            });
+        }
+    </script>
+
+    <!-- Kotlin/JS entry point -->
+    <script src="jd-gui-web.js"></script>
+</body>
+</html>

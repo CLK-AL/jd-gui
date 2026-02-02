@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
     id 'antlr'
+    id 'org.jetbrains.kotlin.jvm'
 }
 
 version = parent.version
@@ -97,6 +98,23 @@ eclipseClasspath.dependsOn antlr4GenerateGrammarSource
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// Kotlin configuration
+kotlin {
+    jvmToolchain(21)
+}
+
+// Ensure Kotlin compiles before Java (for mixed sources)
+compileKotlin {
+    dependsOn antlr4GenerateGrammarSource
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        jvmTarget = '21'
+        freeCompilerArgs += ['-Xjsr305=strict']
     }
 }
 

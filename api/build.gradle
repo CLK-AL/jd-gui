@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
     id 'antlr'
+    id 'org.jetbrains.kotlin.jvm'
 }
 
 version = parent.version
@@ -26,12 +27,32 @@ ext.antlr4 = [
 ext.antlr4.grammarDir = "${antlr4.antlrSource}/${antlr4.language}/${antlr4.version}"
 
 dependencies {
+    // Kotlin stdlib
+    api "org.jetbrains.kotlin:kotlin-stdlib:${rootProject.kotlinVersion}"
+
     // ANTLR 4.13.1 with Java 24+ support
     antlr "org.antlr:antlr4:${rootProject.antlrVersion}"
     api "org.antlr:antlr4-runtime:${rootProject.antlrVersion}"
 
     // Vineflower decompiler (successor to Quiltflower/Fernflower)
     api "org.vineflower:vineflower:${rootProject.vineflowerVersion}"
+}
+
+// Kotlin configuration
+kotlin {
+    jvmToolchain(21)
+}
+
+// Ensure Kotlin compiles before Java (for mixed sources)
+compileKotlin {
+    dependsOn antlr4GenerateGrammarSource
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        jvmTarget = '21'
+        freeCompilerArgs += ['-Xjsr305=strict']
+    }
 }
 
 // Configure ANTLR task
