@@ -58,6 +58,23 @@ dependencies {
     // Yjs for document sync
     implementation("io.github.nicktgn:y-crdt-jvm:0.0.1")
 
+    // Openfire XMPP (Smack library)
+    implementation("org.igniterealtime.smack:smack-java8:4.4.8")
+    implementation("org.igniterealtime.smack:smack-tcp:4.4.8")
+    implementation("org.igniterealtime.smack:smack-im:4.4.8")
+    implementation("org.igniterealtime.smack:smack-extensions:4.4.8")
+
+    // Matrix SDK for social features
+    implementation("net.folivo:trixnity-client:4.1.1")
+    implementation("net.folivo:trixnity-clientserverapi-client:4.1.1")
+
+    // Bedework CalDAV/CardDAV client (caldav4j)
+    implementation("com.github.caldav4j:caldav4j:1.0.0")
+    implementation("org.mnode.ical4j:ical4j:3.2.14")
+
+    // Guava for MapDifference utilities
+    implementation("com.google.guava:guava:33.0.0-jre")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 

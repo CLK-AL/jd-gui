@@ -454,6 +454,41 @@ class VCardOrgManager(private val basePath: String) {
         return if (userDir.exists()) userDir.deleteRecursively() else false
     }
 
+    /**
+     * Update user from a merged vCard object
+     * Used by VCardSyncManager after merging local and remote vCards
+     */
+    fun updateUserFromVCard(organizationId: String, user: User, mergedVCard: VCard): UserVCard? {
+        val file = getUserVCardFile(organizationId, user.id)
+        if (!file.exists()) return null
+
+        try {
+            // Preserve tokens from existing vCard
+            val existingVCard = Ezvcard.parse(file).firstOrNull()
+            val existingTokens = existingVCard?.extendedProperties?.filter {
+                it.propertyName in listOf("X-ACCESS-TOKEN", "X-REFRESH-TOKEN", "X-TOKEN-EXPIRES", "X-TOKEN-ISSUED")
+            }
+
+            // Copy token properties to merged vCard
+            existingTokens?.forEach { tokenProp ->
+                mergedVCard.extendedProperties.removeIf { it.propertyName == tokenProp.propertyName }
+                mergedVCard.addExtendedProperty(tokenProp)
+            }
+
+            // Update revision
+            mergedVCard.revision = Revision(Date())
+
+            // Write merged vCard
+            Ezvcard.write(mergedVCard).version(VCardVersion.V4_0).go(file)
+
+            logger.debug { "Updated user vCard from merged data: ${user.id}" }
+            return getUser(organizationId, user.id)
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to update user from vCard: ${user.id}" }
+            return null
+        }
+    }
+
     // ===================
     // Token Management
     // ===================

@@ -39,6 +39,47 @@ sync:
   debounce-ms: 500
   broadcast-changes: true
 
+# Openfire XMPP Configuration (Organization vCard sync)
+openfire:
+  enabled: ${OPENFIRE_ENABLED:-false}
+  host: ${OPENFIRE_HOST:-localhost}
+  port: ${OPENFIRE_PORT:-5222}
+  domain: ${OPENFIRE_DOMAIN:-localhost}
+  admin-username: ${OPENFIRE_ADMIN_USER:-admin}
+  admin-password: ${OPENFIRE_ADMIN_PASSWORD:-}
+  security-mode: ${OPENFIRE_SECURITY_MODE:-disabled}
+  resource-name: jd-gui-server
+  connection-timeout: 30000
+  enable-roster: true
+  enable-pubsub: true
+
+# Matrix Configuration (User social features)
+matrix:
+  enabled: ${MATRIX_ENABLED:-false}
+  homeserver-url: ${MATRIX_HOMESERVER_URL:-http://localhost:8008}
+  server-name: ${MATRIX_SERVER_NAME:-localhost}
+  admin-username: ${MATRIX_ADMIN_USER:-admin}
+  admin-access-token: ${MATRIX_ADMIN_TOKEN:-}
+  enable-presence: true
+  enable-rooms: true
+  enable-dm: true
+  org-room-prefix: jd-gui-org
+  sync-timeout-ms: 30000
+
+# Bedework CalDAV/CardDAV Configuration (Calendar & Contacts)
+bedework:
+  enabled: ${BEDEWORK_ENABLED:-false}
+  base-url: ${BEDEWORK_URL:-http://localhost:8080/bedework}
+  caldav-path: /ucaldav
+  carddav-path: /ucarddav
+  admin-username: ${BEDEWORK_ADMIN_USER:-admin}
+  admin-password: ${BEDEWORK_ADMIN_PASSWORD:-}
+  default-calendar: calendar
+  default-addressbook: contacts
+  sync-interval-ms: 60000
+  enable-calendar-sync: true
+  enable-contacts-sync: true
+
 # Logging
 logging:
   level:
