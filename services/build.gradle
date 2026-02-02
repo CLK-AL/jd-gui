@@ -28,16 +28,22 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-// ANTLR Configuration - Latest Java grammars by default
-// Available grammar versions: java8, java21, latest (Java 24+)
+// ANTLR Configuration - Grammars organized by language/version
+// Directory structure: antlr/{language}/{version}/
+// Examples:
+//   - antlr/java/8, antlr/java/21, antlr/java/latest
+//
+// Configure via gradle properties:
+//   -PantlrLanguage=java -PantlrVersion=latest
 ext.antlr4 = [
-    javaVersion   : findProperty('antlrJavaVersion') ?: 'latest',
+    language      : findProperty('antlrLanguage') ?: 'java',
+    version       : findProperty('antlrVersion') ?: 'latest',
     antlrSource   : 'src/main/antlr',
     destinationDir: 'src-generated/antlr/java',
     grammarPackage: 'org.jd.gui.util.parser.antlr'
 ]
-// Resolve grammar source directory based on Java version
-ext.antlr4.grammarDir = "${antlr4.antlrSource}/${antlr4.javaVersion}"
+// Resolve grammar source directory based on language and version
+ext.antlr4.grammarDir = "${antlr4.antlrSource}/${antlr4.language}/${antlr4.version}"
 
 // Configure ANTLR task
 generateGrammarSource {

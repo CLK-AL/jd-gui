@@ -5,16 +5,25 @@ plugins {
 
 version = parent.version
 
-// ANTLR 4.13 Configuration - Latest Java grammars by default
-// Available grammar versions: java8, java21, latest (Java 24+)
+// ANTLR 4.13 Configuration - Grammars organized by language/version
+// Directory structure: antlr4/{language}/{version}/
+// Examples:
+//   - antlr4/java/8, antlr4/java/20, antlr4/java/latest
+//   - antlr4/kotlin/spec, antlr4/python/3
+//   - antlr4/sql/mysql, antlr4/sql/postgresql
+//
+// Configure via gradle properties:
+//   -PantlrLanguage=java -PantlrVersion=20
+//   -PantlrLanguage=kotlin -PantlrVersion=spec
 ext.antlr4 = [
-    javaVersion   : findProperty('antlrJavaVersion') ?: 'latest',
+    language      : findProperty('antlrLanguage') ?: 'java',
+    version       : findProperty('antlrVersion') ?: 'latest',
     antlrSource   : 'src/main/antlr4',
     destinationDir: 'src-generated/antlr4/java',
     grammarPackage: 'org.jd.gui.util.parser.antlr4'
 ]
-// Resolve grammar source directory based on Java version
-ext.antlr4.grammarDir = "${antlr4.antlrSource}/${antlr4.javaVersion}"
+// Resolve grammar source directory based on language and version
+ext.antlr4.grammarDir = "${antlr4.antlrSource}/${antlr4.language}/${antlr4.version}"
 
 dependencies {
     // ANTLR 4.13.1 with Java 24+ support
