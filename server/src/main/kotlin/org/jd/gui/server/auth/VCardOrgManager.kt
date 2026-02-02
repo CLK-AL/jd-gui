@@ -12,13 +12,11 @@ import ezvcard.VCardVersion
 import ezvcard.parameter.TelephoneType
 import ezvcard.property.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import mu.KotlinLogging
 import java.io.File
-import java.io.FileWriter
-import java.nio.file.Files
 import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
 import java.util.*
 
 private val logger = KotlinLogging.logger {}
@@ -96,37 +94,88 @@ data class TokenInfo(
 )
 
 /**
+ * Enriched JWT claims with vCard data
+ */
+@Serializable
+data class EnrichedJwtClaims(
+    // Standard JWT claims
+    val sub: String,
+    val iss: String?,
+    val exp: Long?,
+    val iat: Long?,
+
+    // Organization vCard data
+    val orgId: String,
+    val orgName: String,
+    val orgDisplayName: String?,
+    val orgEmail: String?,
+    val orgPhone: String?,
+    val orgWebsite: String?,
+
+    // User vCard data
+    val userId: String,
+    val username: String,
+    val email: String,
+    val fullName: String?,
+    val givenName: String?,
+    val familyName: String?,
+    val phone: String?,
+    val title: String?,
+    val department: String?,
+    val photo: String?,
+    val roles: List<String>,
+    val isOrgAdmin: Boolean,
+
+    // File paths
+    val userFolderPath: String,
+    val orgSharedPath: String,
+    val filesPath: String
+)
+
+/**
  * VCard-based organization and user manager.
  * Uses ez-vcard library to store org/user data as vCard files.
  *
  * Directory structure:
- * /data/vcards/
- *   ├── orgs/
- *   │   ├── {org-uuid}.vcf        # Organization vCard (KIND:org)
- *   │   └── ...
- *   └── users/
- *       ├── {org-uuid}/
- *       │   ├── {user-uuid}.vcf   # User vCard (KIND:individual)
- *       │   └── ...
- *       └── ...
+ * /data/orgs/
+ *   ├── {org-uuid}/
+ *   │   ├── org.vcf              # Organization vCard (KIND:org)
+ *   │   ├── shared/              # Shared organization files
+ *   │   └── users/
+ *   │       ├── {user-uuid}/
+ *   │       │   ├── user.vcf     # User vCard (KIND:individual) with tokens
+ *   │       │   └── files/       # User's files
+ *   │       └── ...
+ *   └── ...
  */
 class VCardOrgManager(private val basePath: String) {
 
-    private val orgsDir = File(basePath, "vcards/orgs")
-    private val usersDir = File(basePath, "vcards/users")
+    private val orgsDir = File(basePath, "orgs")
+    private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
     init {
         orgsDir.mkdirs()
-        usersDir.mkdirs()
-        logger.info { "VCard manager initialized at $basePath" }
+        logger.info { "VCard manager initialized at $basePath/orgs" }
     }
+
+    // ===================
+    // Path Helpers
+    // ===================
+
+    private fun getOrgDir(orgId: String) = File(orgsDir, orgId)
+    private fun getOrgVCardFile(orgId: String) = File(getOrgDir(orgId), "org.vcf")
+    private fun getOrgSharedDir(orgId: String) = File(getOrgDir(orgId), "shared")
+    private fun getUsersDir(orgId: String) = File(getOrgDir(orgId), "users")
+    private fun getUserDir(orgId: String, userId: String) = File(getUsersDir(orgId), userId)
+    private fun getUserVCardFile(orgId: String, userId: String) = File(getUserDir(orgId, userId), "user.vcf")
+    private fun getUserFilesDir(orgId: String, userId: String) = File(getUserDir(orgId, userId), "files")
 
     // ===================
     // Organization Methods
     // ===================
 
     /**
-     * Create a new organization vCard
+     * Create a new organization with org.vcf in its folder
      */
     fun createOrganization(
         name: String,
@@ -140,33 +189,21 @@ class VCardOrgManager(private val basePath: String) {
         val orgId = UUID.randomUUID().toString()
         val now = Instant.now().toEpochMilli()
 
+        // Create org directory structure
+        val orgDir = getOrgDir(orgId)
+        orgDir.mkdirs()
+        getOrgSharedDir(orgId).mkdirs()
+        getUsersDir(orgId).mkdirs()
+
         val vcard = VCard().apply {
-            // Set KIND to org
             kind = Kind.org()
-
-            // Unique ID
             uid = Uid(orgId)
-
-            // Organization name
             setFormattedName(displayName ?: name)
-            organization = Organization().apply {
-                values.add(name)
-            }
+            organization = Organization().apply { values.add(name) }
 
-            // Contact info
-            email?.let {
-                addEmail(Email(it))
-            }
-
-            phone?.let {
-                addTelephoneNumber(Telephone(it).apply {
-                    types.add(TelephoneType.WORK)
-                })
-            }
-
-            website?.let {
-                addUrl(Url(it))
-            }
+            email?.let { addEmail(Email(it)) }
+            phone?.let { addTelephoneNumber(Telephone(it).apply { types.add(TelephoneType.WORK) }) }
+            website?.let { addUrl(Url(it)) }
 
             address?.let { addr ->
                 addAddress(Address().apply {
@@ -178,40 +215,27 @@ class VCardOrgManager(private val basePath: String) {
                 })
             }
 
-            notes?.let {
-                addNote(Note(it))
-            }
-
-            // Timestamps
+            notes?.let { addNote(Note(it)) }
             revision = Revision(Date.from(Instant.ofEpochMilli(now)))
         }
 
-        // Save to file
-        val file = File(orgsDir, "$orgId.vcf")
-        Ezvcard.write(vcard).version(VCardVersion.V4_0).go(file)
+        // Save org.vcf in org folder
+        Ezvcard.write(vcard).version(VCardVersion.V4_0).go(getOrgVCardFile(orgId))
 
-        logger.info { "Created organization: $name ($orgId)" }
+        logger.info { "Created organization: $name ($orgId) at ${orgDir.absolutePath}" }
 
         return OrgVCard(
-            id = orgId,
-            name = name,
-            displayName = displayName,
-            email = email,
-            phone = phone,
-            website = website,
-            address = address,
-            logo = null,
-            notes = notes,
-            createdAt = now,
-            updatedAt = now
+            id = orgId, name = name, displayName = displayName, email = email,
+            phone = phone, website = website, address = address, logo = null,
+            notes = notes, createdAt = now, updatedAt = now
         )
     }
 
     /**
-     * Get organization by ID
+     * Get organization by ID (reads org.vcf from org folder)
      */
     fun getOrganization(orgId: String): OrgVCard? {
-        val file = File(orgsDir, "$orgId.vcf")
+        val file = getOrgVCardFile(orgId)
         if (!file.exists()) return null
 
         return try {
@@ -224,13 +248,13 @@ class VCardOrgManager(private val basePath: String) {
     }
 
     /**
-     * List all organizations
+     * List all organizations (scans org folders for org.vcf)
      */
     fun listOrganizations(): List<OrgVCard> {
-        return orgsDir.listFiles { f -> f.extension == "vcf" }
-            ?.mapNotNull { file ->
-                val orgId = file.nameWithoutExtension
-                getOrganization(orgId)
+        return orgsDir.listFiles { f -> f.isDirectory }
+            ?.mapNotNull { dir ->
+                val orgVcf = File(dir, "org.vcf")
+                if (orgVcf.exists()) getOrganization(dir.name) else null
             }
             ?.sortedBy { it.name }
             ?: emptyList()
@@ -240,49 +264,30 @@ class VCardOrgManager(private val basePath: String) {
      * Update organization
      */
     fun updateOrganization(orgId: String, updates: Map<String, String?>): OrgVCard? {
-        val file = File(orgsDir, "$orgId.vcf")
+        val file = getOrgVCardFile(orgId)
         if (!file.exists()) return null
 
         val vcard = Ezvcard.parse(file).first()
 
         updates["name"]?.let { vcard.organization?.values?.set(0, it) }
         updates["displayName"]?.let { vcard.setFormattedName(it) }
-        updates["email"]?.let {
-            vcard.emails.clear()
-            vcard.addEmail(Email(it))
-        }
-        updates["phone"]?.let {
-            vcard.telephoneNumbers.clear()
-            vcard.addTelephoneNumber(Telephone(it))
-        }
-        updates["website"]?.let {
-            vcard.urls.clear()
-            vcard.addUrl(Url(it))
-        }
-        updates["notes"]?.let {
-            vcard.notes.clear()
-            vcard.addNote(Note(it))
-        }
+        updates["email"]?.let { vcard.emails.clear(); vcard.addEmail(Email(it)) }
+        updates["phone"]?.let { vcard.telephoneNumbers.clear(); vcard.addTelephoneNumber(Telephone(it)) }
+        updates["website"]?.let { vcard.urls.clear(); vcard.addUrl(Url(it)) }
+        updates["notes"]?.let { vcard.notes.clear(); vcard.addNote(Note(it)) }
 
         vcard.revision = Revision(Date())
-
         Ezvcard.write(vcard).version(VCardVersion.V4_0).go(file)
 
         return getOrganization(orgId)
     }
 
     /**
-     * Delete organization and all its users
+     * Delete organization and all its contents
      */
     fun deleteOrganization(orgId: String): Boolean {
-        val orgFile = File(orgsDir, "$orgId.vcf")
-        val userDir = File(usersDir, orgId)
-
-        if (userDir.exists()) {
-            userDir.deleteRecursively()
-        }
-
-        return orgFile.delete()
+        val orgDir = getOrgDir(orgId)
+        return if (orgDir.exists()) orgDir.deleteRecursively() else false
     }
 
     // ===================
@@ -290,7 +295,7 @@ class VCardOrgManager(private val basePath: String) {
     // ===================
 
     /**
-     * Create a new user vCard in organization
+     * Create a new user with user.vcf in their folder
      */
     fun createUser(
         organizationId: String,
@@ -305,7 +310,6 @@ class VCardOrgManager(private val basePath: String) {
         roles: List<String> = emptyList(),
         isAdmin: Boolean = false
     ): UserVCard? {
-        // Check org exists
         if (getOrganization(organizationId) == null) {
             logger.warn { "Organization not found: $organizationId" }
             return null
@@ -314,86 +318,48 @@ class VCardOrgManager(private val basePath: String) {
         val userId = UUID.randomUUID().toString()
         val now = Instant.now().toEpochMilli()
 
+        // Create user directory structure
+        val userDir = getUserDir(organizationId, userId)
+        userDir.mkdirs()
+        getUserFilesDir(organizationId, userId).mkdirs()
+
         val vcard = VCard().apply {
-            // Set KIND to individual
             kind = Kind.individual()
-
-            // Unique ID
             uid = Uid(userId)
-
-            // Names
-            structuredName = StructuredName().apply {
-                given = givenName
-                family = familyName
-            }
+            structuredName = StructuredName().apply { given = givenName; family = familyName }
             setFormattedName(fullName ?: "$givenName $familyName".trim().ifEmpty { username })
-
-            // Nickname (username)
             addNickname(Nickname(username))
-
-            // Email
             addEmail(Email(email))
 
-            // Phone
-            phone?.let {
-                addTelephoneNumber(Telephone(it))
-            }
-
-            // Organization and title
-            organization = Organization().apply {
-                values.add(organizationId)
-            }
+            phone?.let { addTelephoneNumber(Telephone(it)) }
+            organization = Organization().apply { values.add(organizationId) }
             title?.let { addTitle(Title(it)) }
+            department?.let { addCategories(Categories(it)) }
 
-            // Department as category
-            department?.let {
-                addCategories(Categories(it))
-            }
+            if (roles.isNotEmpty()) addExtendedProperty(RawProperty("X-ROLES", roles.joinToString(",")))
+            if (isAdmin) addExtendedProperty(RawProperty("X-IS-ADMIN", "true"))
 
-            // Roles as extended property
-            if (roles.isNotEmpty()) {
-                addExtendedProperty(RawProperty("X-ROLES", roles.joinToString(",")))
-            }
-            if (isAdmin) {
-                addExtendedProperty(RawProperty("X-IS-ADMIN", "true"))
-            }
-
-            // Timestamps
             revision = Revision(Date.from(Instant.ofEpochMilli(now)))
         }
 
-        // Save to file
-        val userOrgDir = File(usersDir, organizationId)
-        userOrgDir.mkdirs()
-        val file = File(userOrgDir, "$userId.vcf")
-        Ezvcard.write(vcard).version(VCardVersion.V4_0).go(file)
+        // Save user.vcf in user folder
+        Ezvcard.write(vcard).version(VCardVersion.V4_0).go(getUserVCardFile(organizationId, userId))
 
-        logger.info { "Created user: $username ($userId) in org $organizationId" }
+        logger.info { "Created user: $username ($userId) at ${userDir.absolutePath}" }
 
         return UserVCard(
-            id = userId,
-            organizationId = organizationId,
-            username = username,
-            email = email,
-            fullName = fullName,
-            givenName = givenName,
-            familyName = familyName,
-            phone = phone,
-            title = title,
-            department = department,
-            photo = null,
-            roles = roles,
-            isAdmin = isAdmin,
-            createdAt = now,
-            updatedAt = now
+            id = userId, organizationId = organizationId, username = username, email = email,
+            fullName = fullName, givenName = givenName, familyName = familyName, phone = phone,
+            title = title, department = department, photo = null, roles = roles, isAdmin = isAdmin,
+            createdAt = now, updatedAt = now
         )
     }
 
     /**
-     * Get user by ID
+     * Get user by ID (reads user.vcf from user folder)
      */
     fun getUser(organizationId: String, userId: String): UserVCard? {
-        val file = File(usersDir, "$organizationId/$userId.vcf")
+        val file = getUserVCardFile(organizationId, userId)
         if (!file.exists()) return null
 
         return try {
@@ -409,18 +375,18 @@ class VCardOrgManager(private val basePath: String) {
      * Find user by email across all organizations
      */
     fun findUserByEmail(email: String): UserVCard? {
-        usersDir.listFiles()?.forEach { orgDir ->
-            if (orgDir.isDirectory) {
-                orgDir.listFiles { f -> f.extension == "vcf" }?.forEach { file ->
-                    try {
-                        val vcard = Ezvcard.parse(file).first()
-                        if (vcard.emails.any { it.value.equals(email, ignoreCase = true) }) {
-                            val userId = file.nameWithoutExtension
-                            val orgId = orgDir.name
-                            return vcardToUser(orgId, userId, vcard)
-                        }
-                    } catch (e: Exception) {
-                        // Skip invalid vcards
+        orgsDir.listFiles { f -> f.isDirectory }?.forEach { orgDir ->
+            val usersDir = File(orgDir, "users")
+            if (usersDir.exists()) {
+                usersDir.listFiles { f -> f.isDirectory }?.forEach { userDir ->
+                    val userVcf = File(userDir, "user.vcf")
+                    if (userVcf.exists()) {
+                        try {
+                            val vcard = Ezvcard.parse(userVcf).first()
+                            if (vcard.emails.any { it.value.equals(email, ignoreCase = true) }) {
+                                return vcardToUser(orgDir.name, userDir.name, vcard)
+                            }
+                        } catch (e: Exception) { /* skip */ }
                     }
                 }
             }
@@ -432,13 +398,13 @@ class VCardOrgManager(private val basePath: String) {
      * List all users in organization
      */
     fun listUsers(organizationId: String): List<UserVCard> {
-        val userOrgDir = File(usersDir, organizationId)
-        if (!userOrgDir.exists()) return emptyList()
+        val usersDir = getUsersDir(organizationId)
+        if (!usersDir.exists()) return emptyList()
 
-        return userOrgDir.listFiles { f -> f.extension == "vcf" }
-            ?.mapNotNull { file ->
-                val userId = file.nameWithoutExtension
-                getUser(organizationId, userId)
+        return usersDir.listFiles { f -> f.isDirectory }
+            ?.mapNotNull { userDir ->
+                val userVcf = File(userDir, "user.vcf")
+                if (userVcf.exists()) getUser(organizationId, userDir.name) else null
             }
             ?.sortedBy { it.username }
             ?: emptyList()
@@ -448,24 +414,15 @@ class VCardOrgManager(private val basePath: String) {
      * Update user
      */
     fun updateUser(organizationId: String, userId: String, updates: Map<String, Any?>): UserVCard? {
-        val file = File(usersDir, "$organizationId/$userId.vcf")
+        val file = getUserVCardFile(organizationId, userId)
         if (!file.exists()) return null
 
         val vcard = Ezvcard.parse(file).first()
 
-        updates["email"]?.let {
-            vcard.emails.clear()
-            vcard.addEmail(Email(it.toString()))
-        }
+        updates["email"]?.let { vcard.emails.clear(); vcard.addEmail(Email(it.toString())) }
         updates["fullName"]?.let { vcard.setFormattedName(it.toString()) }
-        updates["phone"]?.let {
-            vcard.telephoneNumbers.clear()
-            vcard.addTelephoneNumber(Telephone(it.toString()))
-        }
-        updates["title"]?.let {
-            vcard.titles.clear()
-            vcard.addTitle(Title(it.toString()))
-        }
+        updates["phone"]?.let { vcard.telephoneNumbers.clear(); vcard.addTelephoneNumber(Telephone(it.toString())) }
+        updates["title"]?.let { vcard.titles.clear(); vcard.addTitle(Title(it.toString())) }
 
         @Suppress("UNCHECKED_CAST")
         (updates["roles"] as? List<String>)?.let { roles ->
@@ -475,9 +432,7 @@ class VCardOrgManager(private val basePath: String) {
 
         updates["isAdmin"]?.let { isAdmin ->
             vcard.extendedProperties.removeIf { it.propertyName == "X-IS-ADMIN" }
-            if (isAdmin == true) {
-                vcard.addExtendedProperty(RawProperty("X-IS-ADMIN", "true"))
-            }
+            if (isAdmin == true) vcard.addExtendedProperty(RawProperty("X-IS-ADMIN", "true"))
         }
 
         updates["lastLogin"]?.let { timestamp ->
@@ -486,31 +441,142 @@ class VCardOrgManager(private val basePath: String) {
         }
 
         vcard.revision = Revision(Date())
-
         Ezvcard.write(vcard).version(VCardVersion.V4_0).go(file)
 
         return getUser(organizationId, userId)
     }
 
     /**
-     * Delete user
+     * Delete user and their folder
      */
     fun deleteUser(organizationId: String, userId: String): Boolean {
-        val file = File(usersDir, "$organizationId/$userId.vcf")
-        return file.delete()
+        val userDir = getUserDir(organizationId, userId)
+        return if (userDir.exists()) userDir.deleteRecursively() else false
+    }
+
+    // ===================
+    // Token Management
+    // ===================
+
+    /**
+     * Store OAuth tokens in user's vCard (user.vcf)
+     */
+    fun storeTokens(
+        organizationId: String,
+        userId: String,
+        accessToken: String,
+        refreshToken: String?,
+        expiresAt: Long
+    ): Boolean {
+        val file = getUserVCardFile(organizationId, userId)
+        if (!file.exists()) return false
+
+        return try {
+            val vcard = Ezvcard.parse(file).first()
+            val now = Instant.now().toEpochMilli()
+
+            val encodedAccess = Base64.getEncoder().encodeToString(accessToken.toByteArray())
+            val encodedRefresh = refreshToken?.let { Base64.getEncoder().encodeToString(it.toByteArray()) }
+
+            vcard.extendedProperties.removeIf {
+                it.propertyName in listOf("X-ACCESS-TOKEN", "X-REFRESH-TOKEN", "X-TOKEN-EXPIRES", "X-TOKEN-ISSUED")
+            }
+
+            vcard.addExtendedProperty(RawProperty("X-ACCESS-TOKEN", encodedAccess))
+            encodedRefresh?.let { vcard.addExtendedProperty(RawProperty("X-REFRESH-TOKEN", it)) }
+            vcard.addExtendedProperty(RawProperty("X-TOKEN-EXPIRES", expiresAt.toString()))
+            vcard.addExtendedProperty(RawProperty("X-TOKEN-ISSUED", now.toString()))
+
+            vcard.revision = Revision(Date())
+            Ezvcard.write(vcard).version(VCardVersion.V4_0).go(file)
+
+            logger.debug { "Stored tokens in user.vcf for $userId" }
+            true
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to store tokens for user $userId" }
+            false
+        }
     }
 
     /**
-     * Sync user from Keycloak principal
+     * Get stored tokens from user's vCard
      */
-    fun syncFromKeycloak(principal: Phase2Principal): UserVCard? {
+    fun getStoredTokens(organizationId: String, userId: String): TokenInfo? {
+        val file = getUserVCardFile(organizationId, userId)
+        if (!file.exists()) return null
+
+        return try {
+            val vcard = Ezvcard.parse(file).first()
+
+            val encodedAccess = vcard.getExtendedProperty("X-ACCESS-TOKEN")?.value ?: return null
+            val encodedRefresh = vcard.getExtendedProperty("X-REFRESH-TOKEN")?.value
+            val expiresAt = vcard.getExtendedProperty("X-TOKEN-EXPIRES")?.value?.toLongOrNull() ?: return null
+            val issuedAt = vcard.getExtendedProperty("X-TOKEN-ISSUED")?.value?.toLongOrNull()
+
+            TokenInfo(
+                accessToken = String(Base64.getDecoder().decode(encodedAccess)),
+                refreshToken = encodedRefresh?.let { String(Base64.getDecoder().decode(it)) },
+                expiresAt = expiresAt,
+                issuedAt = issuedAt ?: 0,
+                isExpired = expiresAt < Instant.now().toEpochMilli()
+            )
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to get tokens for user $userId" }
+            null
+        }
+    }
+
+    /**
+     * Clear stored tokens (on logout)
+     */
+    fun clearTokens(organizationId: String, userId: String): Boolean {
+        val file = getUserVCardFile(organizationId, userId)
+        if (!file.exists()) return false
+
+        return try {
+            val vcard = Ezvcard.parse(file).first()
+            vcard.extendedProperties.removeIf {
+                it.propertyName in listOf("X-ACCESS-TOKEN", "X-REFRESH-TOKEN", "X-TOKEN-EXPIRES", "X-TOKEN-ISSUED")
+            }
+            vcard.revision = Revision(Date())
+            Ezvcard.write(vcard).version(VCardVersion.V4_0).go(file)
+            true
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to clear tokens for user $userId" }
+            false
+        }
+    }
+
+    /**
+     * Check if user has valid (non-expired) tokens
+     */
+    fun hasValidTokens(organizationId: String, userId: String): Boolean {
+        val tokens = getStoredTokens(organizationId, userId) ?: return false
+        return !tokens.isExpired
+    }
+
+    // ===================
+    // JWT Enrichment
+    // ===================
+
+    /**
+     * Enrich JWT with vCard data from org.vcf and user.vcf
+     * This combines Keycloak claims with local vCard profile data
+     */
+    fun enrichJwtWithVCard(
+        principal: Phase2Principal,
+        issuer: String? = null
+    ): EnrichedJwtClaims? {
         val orgId = principal.activeOrganization?.id ?: principal.defaultOrganization ?: return null
 
-        // Check if user exists
+        // Get org vCard data
+        val org = getOrganization(orgId) ?: return null
+
+        // Find or create user
         var user = findUserByEmail(principal.email ?: return null)
 
         if (user == null) {
-            // Create new user
+            // Create user from Keycloak principal
             user = createUser(
                 organizationId = orgId,
                 username = principal.username,
@@ -530,137 +596,68 @@ class VCardOrgManager(private val basePath: String) {
             ))
         }
 
-        return user
+        if (user == null) return null
+
+        // Build enriched claims
+        return EnrichedJwtClaims(
+            // JWT claims
+            sub = principal.userId,
+            iss = issuer,
+            exp = null, // Would come from token
+            iat = Instant.now().toEpochMilli(),
+
+            // Org vCard data
+            orgId = org.id,
+            orgName = org.name,
+            orgDisplayName = org.displayName,
+            orgEmail = org.email,
+            orgPhone = org.phone,
+            orgWebsite = org.website,
+
+            // User vCard data
+            userId = user.id,
+            username = user.username,
+            email = user.email,
+            fullName = user.fullName,
+            givenName = user.givenName,
+            familyName = user.familyName,
+            phone = user.phone,
+            title = user.title,
+            department = user.department,
+            photo = user.photo,
+            roles = user.roles,
+            isOrgAdmin = user.isAdmin,
+
+            // File paths
+            userFolderPath = getUserDir(orgId, user.id).absolutePath,
+            orgSharedPath = getOrgSharedDir(orgId).absolutePath,
+            filesPath = getUserFilesDir(orgId, user.id).absolutePath
+        )
     }
 
-    // ===================
-    // Token Management
-    // ===================
+    /**
+     * Serialize enriched claims to JSON
+     */
+    fun enrichedClaimsToJson(claims: EnrichedJwtClaims): String {
+        return json.encodeToString(claims)
+    }
 
     /**
-     * Store OAuth tokens in user's vCard
-     * Tokens are Base64 encoded for safe storage in vCard format
+     * Sync Keycloak principal and store tokens, returning enriched claims
      */
-    fun storeTokens(
-        organizationId: String,
-        userId: String,
+    fun syncFromKeycloakWithTokens(
+        principal: Phase2Principal,
         accessToken: String,
         refreshToken: String?,
-        expiresAt: Long
-    ): Boolean {
-        val file = File(usersDir, "$organizationId/$userId.vcf")
-        if (!file.exists()) return false
+        expiresAt: Long,
+        issuer: String? = null
+    ): EnrichedJwtClaims? {
+        val enriched = enrichJwtWithVCard(principal, issuer) ?: return null
 
-        return try {
-            val vcard = Ezvcard.parse(file).first()
-            val now = Instant.now().toEpochMilli()
+        // Store tokens in user.vcf
+        storeTokens(enriched.orgId, enriched.userId, accessToken, refreshToken, expiresAt)
 
-            // Encode tokens as Base64 for safe storage
-            val encodedAccess = Base64.getEncoder().encodeToString(accessToken.toByteArray())
-            val encodedRefresh = refreshToken?.let { Base64.getEncoder().encodeToString(it.toByteArray()) }
-
-            // Remove existing token properties
-            vcard.extendedProperties.removeIf {
-                it.propertyName in listOf("X-ACCESS-TOKEN", "X-REFRESH-TOKEN", "X-TOKEN-EXPIRES", "X-TOKEN-ISSUED")
-            }
-
-            // Add new token properties
-            vcard.addExtendedProperty(RawProperty("X-ACCESS-TOKEN", encodedAccess))
-            encodedRefresh?.let { vcard.addExtendedProperty(RawProperty("X-REFRESH-TOKEN", it)) }
-            vcard.addExtendedProperty(RawProperty("X-TOKEN-EXPIRES", expiresAt.toString()))
-            vcard.addExtendedProperty(RawProperty("X-TOKEN-ISSUED", now.toString()))
-
-            vcard.revision = Revision(Date())
-            Ezvcard.write(vcard).version(VCardVersion.V4_0).go(file)
-
-            logger.debug { "Stored tokens for user $userId in org $organizationId" }
-            true
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to store tokens for user $userId" }
-            false
-        }
-    }
-
-    /**
-     * Get stored tokens from user's vCard
-     */
-    fun getStoredTokens(organizationId: String, userId: String): TokenInfo? {
-        val file = File(usersDir, "$organizationId/$userId.vcf")
-        if (!file.exists()) return null
-
-        return try {
-            val vcard = Ezvcard.parse(file).first()
-
-            val encodedAccess = vcard.getExtendedProperty("X-ACCESS-TOKEN")?.value ?: return null
-            val encodedRefresh = vcard.getExtendedProperty("X-REFRESH-TOKEN")?.value
-            val expiresAt = vcard.getExtendedProperty("X-TOKEN-EXPIRES")?.value?.toLongOrNull() ?: return null
-            val issuedAt = vcard.getExtendedProperty("X-TOKEN-ISSUED")?.value?.toLongOrNull()
-
-            // Decode tokens
-            val accessToken = String(Base64.getDecoder().decode(encodedAccess))
-            val refreshToken = encodedRefresh?.let { String(Base64.getDecoder().decode(it)) }
-
-            TokenInfo(
-                accessToken = accessToken,
-                refreshToken = refreshToken,
-                expiresAt = expiresAt,
-                issuedAt = issuedAt ?: 0,
-                isExpired = expiresAt < Instant.now().toEpochMilli()
-            )
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to get tokens for user $userId" }
-            null
-        }
-    }
-
-    /**
-     * Clear stored tokens (on logout)
-     */
-    fun clearTokens(organizationId: String, userId: String): Boolean {
-        val file = File(usersDir, "$organizationId/$userId.vcf")
-        if (!file.exists()) return false
-
-        return try {
-            val vcard = Ezvcard.parse(file).first()
-
-            vcard.extendedProperties.removeIf {
-                it.propertyName in listOf("X-ACCESS-TOKEN", "X-REFRESH-TOKEN", "X-TOKEN-EXPIRES", "X-TOKEN-ISSUED")
-            }
-
-            vcard.revision = Revision(Date())
-            Ezvcard.write(vcard).version(VCardVersion.V4_0).go(file)
-
-            logger.debug { "Cleared tokens for user $userId in org $organizationId" }
-            true
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to clear tokens for user $userId" }
-            false
-        }
-    }
-
-    /**
-     * Check if user has valid (non-expired) tokens
-     */
-    fun hasValidTokens(organizationId: String, userId: String): Boolean {
-        val tokens = getStoredTokens(organizationId, userId) ?: return false
-        return !tokens.isExpired
-    }
-
-    /**
-     * Sync tokens from Keycloak principal
-     */
-    fun syncTokensFromPrincipal(principal: Phase2Principal, expiresAt: Long): Boolean {
-        val orgId = principal.activeOrganization?.id ?: principal.defaultOrganization ?: return false
-        val user = findUserByEmail(principal.email ?: return false) ?: return false
-
-        // Store the raw token from the principal
-        return storeTokens(
-            organizationId = orgId,
-            userId = user.id,
-            accessToken = principal.rawToken,
-            refreshToken = null, // Refresh token would come from token response
-            expiresAt = expiresAt
-        )
+        return enriched
     }
 
     // ===================
@@ -678,13 +675,7 @@ class VCardOrgManager(private val basePath: String) {
             phone = vcard.telephoneNumbers.firstOrNull()?.text,
             website = vcard.urls.firstOrNull()?.value,
             address = vcard.addresses.firstOrNull()?.let { addr ->
-                AddressInfo(
-                    street = addr.streetAddress,
-                    city = addr.locality,
-                    state = addr.region,
-                    postalCode = addr.postalCode,
-                    country = addr.country
-                )
+                AddressInfo(addr.streetAddress, addr.locality, addr.region, addr.postalCode, addr.country)
             },
             logo = vcard.logos.firstOrNull()?.data?.let { Base64.getEncoder().encodeToString(it) },
             notes = vcard.notes.firstOrNull()?.value,
@@ -697,27 +688,17 @@ class VCardOrgManager(private val basePath: String) {
     private fun vcardToUser(orgId: String, userId: String, vcard: VCard): UserVCard {
         val revision = vcard.revision?.value?.time ?: System.currentTimeMillis()
 
-        val roles = vcard.getExtendedProperty("X-ROLES")?.value
-            ?.split(",")
-            ?.filter { it.isNotBlank() }
-            ?: emptyList()
-
+        val roles = vcard.getExtendedProperty("X-ROLES")?.value?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
         val isAdmin = vcard.getExtendedProperty("X-IS-ADMIN")?.value == "true"
-
         val lastLogin = vcard.getExtendedProperty("X-LAST-LOGIN")?.value?.toLongOrNull()
 
-        // Extract token info
         val encodedAccess = vcard.getExtendedProperty("X-ACCESS-TOKEN")?.value
         val encodedRefresh = vcard.getExtendedProperty("X-REFRESH-TOKEN")?.value
         val tokenExpiresAt = vcard.getExtendedProperty("X-TOKEN-EXPIRES")?.value?.toLongOrNull()
         val tokenIssuedAt = vcard.getExtendedProperty("X-TOKEN-ISSUED")?.value?.toLongOrNull()
 
-        val accessToken = encodedAccess?.let {
-            try { String(Base64.getDecoder().decode(it)) } catch (e: Exception) { null }
-        }
-        val refreshToken = encodedRefresh?.let {
-            try { String(Base64.getDecoder().decode(it)) } catch (e: Exception) { null }
-        }
+        val accessToken = encodedAccess?.let { try { String(Base64.getDecoder().decode(it)) } catch (e: Exception) { null } }
+        val refreshToken = encodedRefresh?.let { try { String(Base64.getDecoder().decode(it)) } catch (e: Exception) { null } }
 
         return UserVCard(
             id = userId,
