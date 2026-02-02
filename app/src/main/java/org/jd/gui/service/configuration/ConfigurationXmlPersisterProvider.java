@@ -25,7 +25,7 @@ public class ConfigurationXmlPersisterProvider
 				implements ConfigurationPersister {
 	protected static final String ERROR_BACKGROUND_COLOR = "JdGuiPreferences.errorBackgroundColor";
 	protected static final String JD_CORE_VERSION        = "JdGuiPreferences.jdCoreVersion";
-	protected static final String QUILTFLOWER_VERSION    = "JdGuiPreferences.quiltflowerVersion";
+	protected static final String VINEFLOWER_VERSION     = "JdGuiPreferences.vineflowerVersion";
 
 	protected static final File FILE = getConfigFile();
 
@@ -218,8 +218,8 @@ public class ConfigurationXmlPersisterProvider
 		      .put(JD_CORE_VERSION,
 		           getJdCoreVersion());
 		config.getPreferences()
-		      .put(QUILTFLOWER_VERSION,
-		           getQuiltflowerVersion());
+		      .put(VINEFLOWER_VERSION,
+		           getVineflowerVersion());
 
 		return config;
 	}
@@ -246,7 +246,7 @@ public class ConfigurationXmlPersisterProvider
 		return "SNAPSHOT";
 	}
 
-	protected String getQuiltflowerVersion() {
+	protected String getVineflowerVersion() {
 		try {
 			Enumeration<URL> enumeration = ConfigurationXmlPersisterProvider.class.getClassLoader()
 			                                                                      .getResources("META-INF/MANIFEST.MF");
@@ -255,7 +255,7 @@ public class ConfigurationXmlPersisterProvider
 				try (InputStream is = enumeration.nextElement()
 				                                 .openStream()) {
 					String attribute = new Manifest(is).getMainAttributes()
-					                                   .getValue("Quiltflower-Version");
+					                                   .getValue("Vineflower-Version");
 					if (attribute != null) {
 						return attribute;
 					}
@@ -265,7 +265,7 @@ public class ConfigurationXmlPersisterProvider
 			assert ExceptionUtil.printStackTrace(e);
 		}
 
-		return "1.7.0";
+		return "1.11.0";
 	}
 
 	@Override

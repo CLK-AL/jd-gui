@@ -12,10 +12,10 @@ public enum ClassFileDecompilerPreferences
 	                   Preference.FALSE,
 	                   Preference.FALSE,
 	                   Preference.TRUE),
-	decompileWithQuiltflower("Decompile jar with Quiltflower on Save All Sources (Ctrl+Alt+S).",
-	                         Preference.TRUE,
-	                         Preference.FALSE,
-	                         Preference.TRUE);
+	decompileWithVineflower("Decompile jar with Vineflower on Save All Sources (Ctrl+Alt+S).",
+	                        Preference.TRUE,
+	                        Preference.FALSE,
+	                        Preference.TRUE);
 	private static final LinkedHashMap<String, ClassFileDecompilerPreferences> namePreferencesMap
 					= GenericPreferencesPanel.toPreferenceByNameMap(ClassFileDecompilerPreferences.values());
 

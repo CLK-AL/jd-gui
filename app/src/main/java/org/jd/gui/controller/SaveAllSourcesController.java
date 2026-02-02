@@ -12,7 +12,7 @@ import org.jd.gui.api.feature.SourcesSavable;
 import org.jd.gui.api.model.Container;
 import org.jd.gui.service.preferencespanel.ClassFileDecompilerPreferences;
 import org.jd.gui.service.preferencespanel.Preference;
-import org.jd.gui.service.preferencespanel.QuiltflowerFileSaverPreferences;
+import org.jd.gui.service.preferencespanel.VineflowerFileSaverPreferences;
 import org.jd.gui.util.exception.ExceptionUtil;
 import org.jd.gui.view.SaveAllSourcesView;
 import org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler;
@@ -31,7 +31,7 @@ public class SaveAllSourcesController
 				implements SourcesSavable.Controller,
 				           SourcesSavable.Listener {
 	protected static final String             JD_CORE_VERSION     = "JdGuiPreferences.jdCoreVersion";
-	protected static final String             QUILTFLOWER_VERSION = "JdGuiPreferences.quiltflowerVersion";
+	protected static final String             VINEFLOWER_VERSION  = "JdGuiPreferences.vineflowerVersion";
 	protected              API                api;
 	protected              SaveAllSourcesView saveAllSourcesView;
 	protected              boolean            cancel;
@@ -84,23 +84,23 @@ public class SaveAllSourcesController
 					if ((parentPath != null) && !Files.exists(parentPath)) {
 						Files.createDirectories(parentPath);
 					}
-					boolean decompileWithQuiltflower = Preference.getBoolean(preferences,
-					                                                         ClassFileDecompilerPreferences.decompileWithQuiltflower);
-					if (decompileWithQuiltflower) {
-						String[] quiltflowerArgs = QuiltflowerFileSaverPreferences.toQuiltflowerJarArgs(fromJarFile,
-						                                                                                toSourcesJarFile,
-						                                                                                preferences);
-						System.out.printf("Decompiling jar file with Quiltflower %s%n"
+					boolean decompileWithVineflower = Preference.getBoolean(preferences,
+					                                                        ClassFileDecompilerPreferences.decompileWithVineflower);
+					if (decompileWithVineflower) {
+						String[] vineflowerArgs = VineflowerFileSaverPreferences.toVineflowerJarArgs(fromJarFile,
+						                                                                             toSourcesJarFile,
+						                                                                             preferences);
+						System.out.printf("Decompiling jar file with Vineflower %s%n"
 						                  + "from %s%n"
 						                  + "to %s%n"
 						                  + "preferences=%s%n"
-						                  + "quiltflowerArgs=%s%n",
-						                  preferences.get(QUILTFLOWER_VERSION),
+						                  + "vineflowerArgs=%s%n",
+						                  preferences.get(VINEFLOWER_VERSION),
 						                  fromJarFile,
 						                  toSourcesJarFile,
 						                  preferences,
-						                  Arrays.toString(quiltflowerArgs));
-						ConsoleDecompiler.main(quiltflowerArgs);
+						                  Arrays.toString(vineflowerArgs));
+						ConsoleDecompiler.main(vineflowerArgs);
 					} else {
 						System.out.printf("Decompiling jar file with JD-Core %s%n" + "from %s%n" + "to %s%n" + "preferences=%s%n",
 						                  preferences.get(JD_CORE_VERSION),

@@ -30,7 +30,7 @@ public class AboutView {
 	                                                  + "Java sources from CLASS files";
 	private static final int    YEAR                = OffsetDateTime.now()
 	                                                                .getYear();
-	private static final String QUILTFLOWER_VERSION = "1.7.0";
+	private static final String VINEFLOWER_VERSION  = "1.11.0";
 	private static final String DEVELOPERS          = "(C) 2008-2022 Emmanuel Dupuy & Tomer Bar-Shlomo";
 	private static       String JD_GUI_VERSION      = "2022.3.28";
 	private static       String JD_CORE_VERSION     = "1.1.3";
@@ -128,8 +128,8 @@ public class AboutView {
 			subsubpanel.add(new JLabel("version " + JD_GUI_VERSION));
 			subsubpanel.add(new JLabel("JD-Core"));
 			subsubpanel.add(new JLabel("version " + JD_CORE_VERSION));
-			subsubpanel.add(new JLabel("Quiltflower"));
-			subsubpanel.add(new JLabel("version " + QUILTFLOWER_VERSION));
+			subsubpanel.add(new JLabel("Vineflower"));
+			subsubpanel.add(new JLabel("version " + VINEFLOWER_VERSION));
 
 			hbox.add(Box.createHorizontalGlue());
 			String[] strings = JD_GUI_DESCRIPTION.split(", ");

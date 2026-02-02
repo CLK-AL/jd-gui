@@ -27,7 +27,7 @@
 | **ASM** | 9.6 | Java bytecode manipulation (Java 21 compatible) |
 | **JD-Core** | 1.1.3 | Java decompiler engine |
 | **RSyntaxTextArea** | 3.4.0 | Syntax highlighting text editor |
-| **Quiltflower** | 1.9.0 | Alternative decompiler |
+| **Vineflower** | 1.11.0 | Modern Java 21+ decompiler (successor to Quiltflower) |
 | **JUnit** | 5.10.1 | Testing framework |
 | **ProGuard** | 7.4.2 | JAR minification |
 

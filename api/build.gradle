@@ -16,6 +16,9 @@ dependencies {
     // ANTLR 4.13.1 with Java 21 support
     antlr "org.antlr:antlr4:${rootProject.antlrVersion}"
     api "org.antlr:antlr4-runtime:${rootProject.antlrVersion}"
+
+    // Vineflower decompiler (successor to Quiltflower/Fernflower)
+    api "org.vineflower:vineflower:${rootProject.vineflowerVersion}"
 }
 
 // Configure ANTLR task

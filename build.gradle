@@ -17,12 +17,14 @@ def javaVersion = JavaVersion.VERSION_21
 def kotlinVersion = '1.9.22'
 def antlrVersion = '4.13.1'
 def asmVersion = '9.6' // ASM 9.6 supports Java 21
+def vineflowerVersion = '1.11.0' // Vineflower decompiler (successor to Quiltflower)
 
 ext {
     javaVersion = javaVersion
     kotlinVersion = kotlinVersion
     antlrVersion = antlrVersion
     asmVersion = asmVersion
+    vineflowerVersion = vineflowerVersion
 }
 
 allprojects {
@@ -87,7 +89,7 @@ jar {
                 'JD-GUI-Version': project.version,
                 'JD-GUI-Description': project.description,
                 'JD-Core-Version': project.jdCoreVersion,
-                'Quiltflower-Version': '1.9.0',
+                'Vineflower-Version': vineflowerVersion,
                 'Multi-Release': 'true'
     }
     exclude 'META-INF/licenses/**', 'META-INF/maven/**', 'META-INF/INDEX.LIST'

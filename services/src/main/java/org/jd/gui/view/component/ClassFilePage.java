@@ -18,7 +18,7 @@ import org.jd.gui.api.API;
 import org.jd.gui.api.model.Container;
 import org.jd.gui.service.preferencespanel.ClassFileDecompilerPreferences;
 import org.jd.gui.service.preferencespanel.Preference;
-import org.jd.gui.service.preferencespanel.QuiltflowerFileSaverPreferences;
+import org.jd.gui.service.preferencespanel.VineflowerFileSaverPreferences;
 import org.jd.gui.util.decompiler.*;
 import org.jd.gui.util.exception.ExceptionUtil;
 import org.jd.gui.util.io.NewlineOutputStream;
@@ -41,7 +41,7 @@ public class ClassFilePage
 	protected static final String WRITE_LINE_NUMBERS        = "ClassFileSaverPreferences.writeLineNumbers";
 	protected static final String WRITE_METADATA            = "ClassFileSaverPreferences.writeMetadata";
 	protected static final String JD_CORE_VERSION           = "JdGuiPreferences.jdCoreVersion";
-	protected static final String QUILTFLOWER_VERSION       = "JdGuiPreferences.quiltflowerVersion";
+	protected static final String VINEFLOWER_VERSION        = "JdGuiPreferences.vineflowerVersion";
 
 	protected static final ClassFileToJavaSourceDecompiler JD_CORE_CLASS_FILE_TO_JAVA_SOURCE_DECOMPILER
 					= new ClassFileToJavaSourceDecompiler();
@@ -81,10 +81,10 @@ public class ClassFilePage
 	}
 
 	@SuppressWarnings("ResultOfMethodCallIgnored")
-	public static String[] toQuiltflowerClassArgs(Container.Entry entry,
-	                                              ContainerLoader containerLoader,
-	                                              String entryInternalName,
-	                                              Map<String, String> preferences)
+	public static String[] toVineflowerClassArgs(Container.Entry entry,
+	                                             ContainerLoader containerLoader,
+	                                             String entryInternalName,
+	                                             Map<String, String> preferences)
 					throws
 					IOException,
 					LoaderException {
@@ -101,21 +101,21 @@ public class ClassFilePage
 		fromTempClassFile.renameTo(fromClassFile);
 
 		File toJavaFile = getToJavaFile(fromEntryFile);
-		String[] quiltflowerArgs = QuiltflowerFileSaverPreferences.toQuiltflowerClassArgs(fromJarFile,
-		                                                                                  fromClassFile,
-		                                                                                  toJavaFile,
-		                                                                                  preferences);
-		System.out.printf("Decompiling class file with Quiltflower %s%n"
+		String[] vineflowerArgs = VineflowerFileSaverPreferences.toVineflowerClassArgs(fromJarFile,
+		                                                                               fromClassFile,
+		                                                                               toJavaFile,
+		                                                                               preferences);
+		System.out.printf("Decompiling class file with Vineflower %s%n"
 		                  + "from %s%n"
 		                  + "to %s%n"
 		                  + "preferences=%s%n"
-		                  + "quiltflowerArgs=%s%n",
-		                  preferences.get(QUILTFLOWER_VERSION),
+		                  + "vineflowerArgs=%s%n",
+		                  preferences.get(VINEFLOWER_VERSION),
 		                  fromClassFile,
 		                  toJavaFile,
 		                  preferences,
-		                  Arrays.toString(quiltflowerArgs));
-		return quiltflowerArgs;
+		                  Arrays.toString(vineflowerArgs));
+		return vineflowerArgs;
 	}
 
 	@Override
@@ -286,12 +286,12 @@ public class ClassFilePage
 					stringBuffer.append(lineNumberStringBuilderPrinter.getMinorVersion());
 					stringBuffer.append(')');
 				}
-				boolean decompileWithQuiltflower = Preference.getBoolean(preferences,
-				                                                         ClassFileDecompilerPreferences.decompileWithQuiltflower);
-				if (decompileWithQuiltflower) {
-					// Add JD-Core version
-					stringBuffer.append("\n * Quiltflower Version:       ");
-					stringBuffer.append(preferences.get(QUILTFLOWER_VERSION));
+				boolean decompileWithVineflower = Preference.getBoolean(preferences,
+				                                                        ClassFileDecompilerPreferences.decompileWithVineflower);
+				if (decompileWithVineflower) {
+					// Add Vineflower version
+					stringBuffer.append("\n * Vineflower Version:        ");
+					stringBuffer.append(preferences.get(VINEFLOWER_VERSION));
 					stringBuffer.append("\n */");
 				} else {
 					// Add JD-Core version
@@ -335,15 +335,15 @@ public class ClassFilePage
 		                                               entryPath.length() - 6); // 6 = ".class".length()
 
 		//TODO
-		//		boolean decompileWithQuiltflower = Preference.getBoolean(preferences,
-		//		                                                         ClassFileDecompilerPreferences
-		//		                                                         .decompileWithQuiltflower);
-		//		if (decompileWithQuiltflower) {
-		//			String[] quiltflowerArgs = toQuiltflowerClassArgs(entry,
-		//			                                                  containerLoader,
-		//			                                                  entryInternalName,
-		//			                                                  preferences);
-		//			ConsoleDecompiler.main(quiltflowerArgs);
+		//		boolean decompileWithVineflower = Preference.getBoolean(preferences,
+		//		                                                        ClassFileDecompilerPreferences
+		//		                                                        .decompileWithVineflower);
+		//		if (decompileWithVineflower) {
+		//			String[] vineflowerArgs = toVineflowerClassArgs(entry,
+		//			                                                containerLoader,
+		//			                                                entryInternalName,
+		//			                                                preferences);
+		//			ConsoleDecompiler.main(vineflowerArgs);
 		//		} else {
 		URI  entryUri      = entry.getUri();
 		File fromEntryFile = new File(entryUri);
