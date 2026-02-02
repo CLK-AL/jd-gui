@@ -332,26 +332,34 @@ public class ModuleInfoFilePage
 		public TokenMap getWordsToHighlight() {
 			TokenMap tokenMap = new TokenMap();
 
-			tokenMap.put("exports",
-			             Token.RESERVED_WORD);
-			tokenMap.put("module",
-			             Token.RESERVED_WORD);
-			tokenMap.put("open",
-			             Token.RESERVED_WORD);
-			tokenMap.put("opens",
-			             Token.RESERVED_WORD);
-			tokenMap.put("provides",
-			             Token.RESERVED_WORD);
-			tokenMap.put("requires",
-			             Token.RESERVED_WORD);
-			tokenMap.put("to",
-			             Token.RESERVED_WORD);
-			tokenMap.put("transitive",
-			             Token.RESERVED_WORD);
-			tokenMap.put("uses",
-			             Token.RESERVED_WORD);
-			tokenMap.put("with",
-			             Token.RESERVED_WORD);
+			// Module keywords (Java 9+)
+			tokenMap.put("exports", Token.RESERVED_WORD);
+			tokenMap.put("module", Token.RESERVED_WORD);
+			tokenMap.put("open", Token.RESERVED_WORD);
+			tokenMap.put("opens", Token.RESERVED_WORD);
+			tokenMap.put("provides", Token.RESERVED_WORD);
+			tokenMap.put("requires", Token.RESERVED_WORD);
+			tokenMap.put("to", Token.RESERVED_WORD);
+			tokenMap.put("transitive", Token.RESERVED_WORD);
+			tokenMap.put("uses", Token.RESERVED_WORD);
+			tokenMap.put("with", Token.RESERVED_WORD);
+
+			// Java 10+ keywords
+			tokenMap.put("var", Token.RESERVED_WORD);
+
+			// Java 14+ keywords
+			tokenMap.put("yield", Token.RESERVED_WORD);
+
+			// Java 16+ keywords
+			tokenMap.put("record", Token.RESERVED_WORD);
+
+			// Java 17+ keywords
+			tokenMap.put("sealed", Token.RESERVED_WORD);
+			tokenMap.put("permits", Token.RESERVED_WORD);
+			tokenMap.put("non-sealed", Token.RESERVED_WORD);
+
+			// Java 21+ keywords
+			tokenMap.put("when", Token.RESERVED_WORD);
 
 			return tokenMap;
 		}

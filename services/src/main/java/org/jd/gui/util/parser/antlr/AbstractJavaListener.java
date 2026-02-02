@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2022 Emmanuel Dupuy & Tomer Bar-Shlomo.
+ * Copyright (c) 2008-2024 Emmanuel Dupuy & Tomer Bar-Shlomo.
  * This project is distributed under the GPLv3 license.
  * This is a Copyleft license that gives the user the right to use,
  * copy and modify the code freely for non-commercial purposes.
@@ -15,6 +15,20 @@ import org.jd.gui.api.model.Container;
 import java.util.HashMap;
 import java.util.List;
 
+/**
+ * Base ANTLR listener for parsing Java source files.
+ * Supports Java 8 through Java 21 features including:
+ * - Lambdas and method references (Java 8)
+ * - Modules (Java 9)
+ * - Local variable type inference - var (Java 10)
+ * - Switch expressions (Java 14)
+ * - Text blocks (Java 15)
+ * - Records (Java 16)
+ * - Sealed classes (Java 17)
+ * - Pattern matching (Java 16-21)
+ * - Record patterns (Java 21)
+ * - Unnamed patterns and variables (Java 21)
+ */
 public abstract class AbstractJavaListener
 				extends JavaBaseListener {
 	protected Container.Entry         entry;
@@ -147,6 +161,15 @@ public abstract class AbstractJavaListener
 		}
 	}
 
+	/**
+	 * Creates a type descriptor from a type context.
+	 * Handles all Java types including:
+	 * - Primitive types
+	 * - Reference types
+	 * - Array types
+	 * - Generic types
+	 * - var (local variable type inference - Java 10+)
+	 */
 	protected String createDescriptor(JavaParser.TypeContext typeContext,
 	                                  int dimension) {
 		if (typeContext == null) {
@@ -157,78 +180,127 @@ public abstract class AbstractJavaListener
 			String                          name;
 
 			if (primitive == null) {
-				JavaParser.ClassOrInterfaceTypeContext type                  = typeContext.classOrInterfaceType();
+				JavaParser.ClassOrInterfaceTypeContext type = typeContext.classOrInterfaceType();
+				if (type == null) {
+					// Could be an annotation or other type
+					return "Ljava/lang/Object;";
+				}
 				List<JavaParser.TypeArgumentsContext>  typeArgumentsContexts = type.typeArguments();
 
-				if (typeArgumentsContexts.size() == 1) {
+				if (typeArgumentsContexts != null && typeArgumentsContexts.size() == 1) {
 					JavaParser.TypeArgumentsContext      typeArgumentsContext = typeArgumentsContexts.get(0);
 					List<JavaParser.TypeArgumentContext> typeArguments        = typeArgumentsContext.typeArgument();
-				} else if (typeArgumentsContexts.size() > 1) {
-					throw new RuntimeException("UNEXPECTED");
+				} else if (typeArgumentsContexts != null && typeArgumentsContexts.size() > 1) {
+					// Multiple type argument contexts (nested generics)
+					// Just continue with the base type
 				}
 
 				name = "L" + resolveInternalTypeName(type.Identifier()) + ";";
 			} else {
 				// Search primitive
-				switch (primitive.getText()) {
-					case "boolean":
-						name = "Z";
-						break;
-					case "byte":
-						name = "B";
-						break;
-					case "char":
-						name = "C";
-						break;
-					case "double":
-						name = "D";
-						break;
-					case "float":
-						name = "F";
-						break;
-					case "int":
-						name = "I";
-						break;
-					case "long":
-						name = "J";
-						break;
-					case "short":
-						name = "S";
-						break;
-					case "void":
-						name = "V";
-						break;
-					default:
-						throw new RuntimeException("UNEXPECTED PRIMITIVE");
-				}
+				name = getPrimitiveDescriptor(primitive.getText());
 			}
 
-			switch (dimension) {
-				case 0:
-					return name;
-				case 1:
-					return "[" + name;
-				case 2:
-					return "[[" + name;
-				default:
-					return new String(new char[dimension]).replace('\0',
-					                                               '[') + name;
-			}
+			return prependArrayDimension(name, dimension);
+		}
+	}
+
+	/**
+	 * Creates a descriptor for a type that could be 'var' (Java 10+).
+	 * When 'var' is used, we can't determine the actual type statically,
+	 * so we return Object as a placeholder.
+	 */
+	protected String createDescriptorWithVar(JavaParser.TypeContext typeContext,
+	                                         boolean isVar,
+	                                         int dimension) {
+		if (isVar) {
+			// 'var' keyword - type inference, return Object as placeholder
+			return prependArrayDimension("Ljava/lang/Object;", dimension);
+		}
+		return createDescriptor(typeContext, dimension);
+	}
+
+	/**
+	 * Gets the JVM descriptor for a primitive type.
+	 */
+	protected String getPrimitiveDescriptor(String primitiveType) {
+		switch (primitiveType) {
+			case "boolean":
+				return "Z";
+			case "byte":
+				return "B";
+			case "char":
+				return "C";
+			case "double":
+				return "D";
+			case "float":
+				return "F";
+			case "int":
+				return "I";
+			case "long":
+				return "J";
+			case "short":
+				return "S";
+			case "void":
+				return "V";
+			default:
+				throw new RuntimeException("UNEXPECTED PRIMITIVE: " + primitiveType);
+		}
+	}
+
+	/**
+	 * Prepends array dimension markers to a type descriptor.
+	 */
+	protected String prependArrayDimension(String name, int dimension) {
+		switch (dimension) {
+			case 0:
+				return name;
+			case 1:
+				return "[" + name;
+			case 2:
+				return "[[" + name;
+			default:
+				return new String(new char[dimension]).replace('\0', '[') + name;
 		}
 	}
 
 	protected int countDimension(List<ParseTree> children) {
 		int dimension = 0;
 
-		for (ParseTree child : children) {
-			if (child instanceof TerminalNodeImpl) {
-				if (((TerminalNodeImpl) child).getSymbol()
-				                              .getType() == JavaParser.LBRACK) {
-					dimension++;
+		if (children != null) {
+			for (ParseTree child : children) {
+				if (child instanceof TerminalNodeImpl) {
+					if (((TerminalNodeImpl) child).getSymbol()
+					                              .getType() == JavaParser.LBRACK) {
+						dimension++;
+					}
 				}
 			}
 		}
 
 		return dimension;
+	}
+
+	/**
+	 * Checks if a variable declarator ID represents an unnamed variable (Java 21+).
+	 * Unnamed variables use the underscore '_' identifier.
+	 */
+	protected boolean isUnnamedVariable(JavaParser.VariableDeclaratorIdContext ctx) {
+		if (ctx == null) return false;
+		// Check if it's the UNDERSCORE token
+		return ctx.UNDERSCORE() != null;
+	}
+
+	/**
+	 * Gets the identifier name from a variable declarator ID.
+	 * Returns "_" for unnamed variables (Java 21+).
+	 */
+	protected String getVariableName(JavaParser.VariableDeclaratorIdContext ctx) {
+		if (ctx == null) return "";
+		if (ctx.UNDERSCORE() != null) {
+			return "_";
+		}
+		TerminalNode identifier = ctx.Identifier();
+		return identifier != null ? identifier.getText() : "";
 	}
 }

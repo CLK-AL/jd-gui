@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2022 Emmanuel Dupuy & Tomer Bar-Shlomo.
+ * Copyright (c) 2008-2024 Emmanuel Dupuy & Tomer Bar-Shlomo.
  * This project is distributed under the GPLv3 license.
  * This is a Copyleft license that gives the user the right to use,
  * copy and modify the code freely for non-commercial purposes.
@@ -7,8 +7,10 @@
 
 package org.jd.gui.view.component;
 
+import org.fife.ui.rsyntaxtextarea.AbstractTokenMakerFactory;
 import org.fife.ui.rsyntaxtextarea.DocumentRange;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
+import org.fife.ui.rsyntaxtextarea.TokenMakerFactory;
 import org.jd.core.v1.ClassFileToJavaSourceDecompiler;
 import org.jd.core.v1.api.loader.LoaderException;
 import org.jd.core.v1.api.printer.Printer;
@@ -44,7 +46,14 @@ public class ClassFilePage
 	protected static final ClassFileToJavaSourceDecompiler JD_CORE_CLASS_FILE_TO_JAVA_SOURCE_DECOMPILER
 					= new ClassFileToJavaSourceDecompiler();
 
+	/** Custom syntax style for Java 21 with extended keywords */
+	public static final String SYNTAX_STYLE_JAVA21 = "text/java21";
+
 	static {
+		// Register Java 21 token maker for enhanced keyword support
+		AbstractTokenMakerFactory atmf = (AbstractTokenMakerFactory) TokenMakerFactory.getDefaultInstance();
+		atmf.putMapping(SYNTAX_STYLE_JAVA21, Java21TokenMaker.class.getName());
+
 		// Early class loading
 		try {
 			String internalTypeName = ClassFilePage.class.getName()
@@ -110,7 +119,7 @@ public class ClassFilePage
 	}
 
 	@Override
-	public String getSyntaxStyle() {return SyntaxConstants.SYNTAX_STYLE_JAVA;}
+	public String getSyntaxStyle() {return SYNTAX_STYLE_JAVA21;}
 
 	// --- ContentSavable --- //
 	@Override

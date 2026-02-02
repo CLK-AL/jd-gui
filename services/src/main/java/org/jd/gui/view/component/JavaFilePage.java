@@ -53,7 +53,7 @@ public class JavaFilePage
 		initLineNumbers();
 	}
 
-	public String getSyntaxStyle() {return SyntaxConstants.SYNTAX_STYLE_JAVA;}
+	public String getSyntaxStyle() {return ClassFilePage.SYNTAX_STYLE_JAVA21;}
 
 	// --- ContentSavable --- //
 	public String getFileName() {
