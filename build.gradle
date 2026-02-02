@@ -8,8 +8,8 @@ plugins {
 }
 
 // Common configuration //
-rootProject.version = '2024.1.0'
-rootProject.description = 'JD-GUI (C) 2008-2024 Emmanuel Dupuy & Tomer Bar-Shlomo, a standalone graphical utility that displays Java sources from CLASS files'
+rootProject.version = '2026.2.2'
+rootProject.description = 'JD-GUI (C) 2008-2026 Emmanuel Dupuy & Tomer Bar-Shlomo, a standalone graphical utility that displays Java sources from CLASS files'
 rootProject.ext.set('jdCoreVersion', '1.1.3')
 
 // Java 21 LTS support
