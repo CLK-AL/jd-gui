@@ -1,0 +1,47 @@
+ktor:
+  application:
+    modules:
+      - org.jd.gui.server.ApplicationKt.module
+  deployment:
+    port: 8080
+    host: 0.0.0.0
+
+# Keycloak OIDC Configuration
+keycloak:
+  realm: jd-gui
+  auth-server-url: ${KEYCLOAK_URL:-http://localhost:8180}
+  client-id: jd-gui-server
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:-}
+  ssl-required: external
+  public-client: false
+  bearer-only: true
+  jwks-url: ${KEYCLOAK_JWKS_URL:-http://localhost:8180/realms/jd-gui/protocol/openid-connect/certs}
+  issuer: ${KEYCLOAK_ISSUER:-http://localhost:8180/realms/jd-gui}
+
+# WebDAV Storage Configuration
+storage:
+  base-path: ${STORAGE_PATH:-./data}
+  system-folder: system
+  users-folder: users
+  max-file-size: 104857600  # 100MB
+  allowed-extensions:
+    - .jar
+    - .class
+    - .java
+    - .kt
+    - .xml
+    - .json
+    - .properties
+
+# Yjs Sync Configuration
+sync:
+  enabled: true
+  debounce-ms: 500
+  broadcast-changes: true
+
+# Logging
+logging:
+  level:
+    root: INFO
+    org.jd.gui: DEBUG
+    io.ktor: INFO

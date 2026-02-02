@@ -70,6 +70,7 @@ rootProject.name = "jd-gui"
 include(":common")           // Shared KMP code
 include(":composeApp")       // Compose Multiplatform (Android, iOS, Desktop)
 include(":web")              // PWA with Monaco/Ace editor
+include(":server")           // Ktor server with WebDAV, Keycloak, Yjs sync
 
 // Legacy JVM modules (for backward compatibility)
 include(":api")              // Core SPI and ANTLR grammars
