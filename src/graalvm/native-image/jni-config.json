@@ -1,0 +1,23 @@
+[
+  {
+    "name": "java.lang.ClassLoader",
+    "methods": [
+      {"name": "getPlatformClassLoader", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "sun.awt.X11GraphicsEnvironment",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "sun.awt.X11.XToolkit",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "java.awt.GraphicsEnvironment",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]

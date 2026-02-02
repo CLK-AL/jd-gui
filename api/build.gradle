@@ -1,43 +1,35 @@
-apply plugin: 'java'
+plugins {
+    id 'java-library'
+    id 'antlr'
+}
 
 version = parent.version
 
-//def downloadJar = { url, name ->
-//    File file = new File("$buildDir/download/${name}.jar")
-//    file.parentFile.mkdirs()
-//    if (!file.exists()) {
-//        new URL(url).withInputStream { downloadStream ->
-//            file.withOutputStream { fileOut ->
-//                fileOut << downloadStream
-//            }
-//        }
-//    }
-//    files(file.absolutePath)
-//}
-
-// ANTLR //
+// ANTLR 4.13 Configuration
 ext.antlr4 = [
-        antlrSource   : 'src/main/antlr4',
-        destinationDir: 'src-generated/antlr4/java',
-        grammarPackage: 'org.jd.gui.util.parser.antlr4'
+    antlrSource   : 'src/main/antlr4',
+    destinationDir: 'src-generated/antlr4/java',
+    grammarPackage: 'org.jd.gui.util.parser.antlr4'
 ]
 
-configurations {
-    antlr4 {
-        description = "ANTLR4"
-    }
-}
-
 dependencies {
-    compile 'org.antlr:antlr4-runtime:4.5'
-    antlr4 'org.antlr:antlr4:4.5'
-    // https://mvnrepository.com/artifact/org.benf/cfr
-//    compile 'org.benf:cfr:0.152'
-//    compile downloadJar('https://github.com/QuiltMC/quiltflower/releases/download/1.7.0/quiltflower-1.7.0.jar', 'quiltflower-1.7.0')
+    // ANTLR 4.13.1 with Java 21 support
+    antlr "org.antlr:antlr4:${rootProject.antlrVersion}"
+    api "org.antlr:antlr4-runtime:${rootProject.antlrVersion}"
 }
 
-task antlr4OutputDir() {
-    mkdir antlr4.destinationDir
+// Configure ANTLR task
+generateGrammarSource {
+    maxHeapSize = '512m'
+    arguments += ['-visitor', '-listener', '-long-messages']
+    outputDirectory = file("${antlr4.destinationDir}/${antlr4.grammarPackage.replace('.', '/')}")
+}
+
+// Custom ANTLR4 task for legacy compatibility
+task antlr4OutputDir {
+    doLast {
+        mkdir antlr4.destinationDir
+    }
 }
 
 task antlr4GenerateGrammarSource(dependsOn: antlr4OutputDir, type: JavaExec) {
@@ -47,11 +39,11 @@ task antlr4GenerateGrammarSource(dependsOn: antlr4OutputDir, type: JavaExec) {
     outputs.dir file(antlr4.destinationDir)
 
     def grammars = fileTree(antlr4.antlrSource).include('**/*.g4')
-    def pkg = antlr4.grammarPackage.replaceAll("\\.", "/")
+    def pkg = antlr4.grammarPackage.replace(".", "/")
 
-    main = 'org.antlr.v4.Tool'
-    classpath = configurations.antlr4
-    args = ['-o', "${antlr4.destinationDir}/${pkg}", '-package', antlr4.grammarPackage, grammars.files].flatten()
+    mainClass = 'org.antlr.v4.Tool'
+    classpath = configurations.antlr
+    args = ['-o', "${antlr4.destinationDir}/${pkg}", '-package', antlr4.grammarPackage, '-visitor', '-listener', grammars.files].flatten()
 }
 
 compileJava {
@@ -65,6 +57,7 @@ clean {
 
 idea.module {
     sourceDirs += file(antlr4.destinationDir)
+    generatedSourceDirs += file(antlr4.destinationDir)
 }
 ideaModule.dependsOn antlr4GenerateGrammarSource
 
@@ -73,3 +66,10 @@ eclipse.classpath.file.withXml { xml ->
     node.appendNode('classpathentry', [kind: 'src', path: antlr4.destinationDir])
 }
 eclipseClasspath.dependsOn antlr4GenerateGrammarSource
+
+// Java 21 toolchain configuration
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}

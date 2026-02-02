@@ -4,6 +4,7 @@
  Copyright (c) 2017 Ivan Kochurkin (upgrade to Java 8)
  Copyright (c) 2021 Michał Lorek (upgrade to Java 11)
  Copyright (c) 2022 Michał Lorek (upgrade to Java 17)
+ Copyright (c) 2024 JD-GUI Contributors (upgrade to Java 21)
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -84,7 +85,7 @@ VOID:               'void';
 VOLATILE:           'volatile';
 WHILE:              'while';
 
-// Module related keywords
+// Module related keywords (Java 9+)
 MODULE:             'module';
 OPEN:               'open';
 REQUIRES:           'requires';
@@ -96,19 +97,25 @@ PROVIDES:           'provides';
 WITH:               'with';
 TRANSITIVE:         'transitive';
 
-// Local Variable Type Inference
-VAR:                'var'; // reserved type name
+// Local Variable Type Inference (Java 10+)
+VAR:                'var';
 
-// Switch Expressions
+// Switch Expressions (Java 14+)
 YIELD:              'yield';
 
-// Records
+// Records (Java 16+)
 RECORD:             'record';
 
-// Sealed Classes
+// Sealed Classes (Java 17+)
 SEALED:             'sealed';
 PERMITS:            'permits';
 NON_SEALED:         'non-sealed';
+
+// Pattern matching keywords (Java 21+)
+WHEN:               'when';
+
+// Unnamed patterns and variables (Java 21+ preview)
+UNDERSCORE:         '_';
 
 // Literals
 
@@ -131,7 +138,16 @@ CHAR_LITERAL:       '\'' (~['\\\r\n] | EscapeSequence) '\'';
 
 STRING_LITERAL:     '"' (~["\\\r\n] | EscapeSequence)* '"';
 
+// Text Blocks (Java 15+)
 TEXT_BLOCK:         '"""' [ \t]* [\r\n] (. | EscapeSequence)*? '"""';
+
+// String Templates (Java 21+ preview)
+STRING_TEMPLATE_BEGIN:  '"' (~["\\\r\n] | EscapeSequence)* '\\{';
+STRING_TEMPLATE_MID:    '}' (~["\\\r\n] | EscapeSequence)* '\\{';
+STRING_TEMPLATE_END:    '}' (~["\\\r\n] | EscapeSequence)* '"';
+TEXT_BLOCK_TEMPLATE_BEGIN: '"""' [ \t]* [\r\n] (. | EscapeSequence)*? '\\{';
+TEXT_BLOCK_TEMPLATE_MID:   '}' (. | EscapeSequence)*? '\\{';
+TEXT_BLOCK_TEMPLATE_END:   '}' (. | EscapeSequence)*? '"""';
 
 NULL_LITERAL:       'null';
 
@@ -215,6 +231,7 @@ fragment EscapeSequence
     : '\\' [btnfr"'\\]
     | '\\' ([0-3]? [0-7])? [0-7]
     | '\\' 'u'+ HexDigit HexDigit HexDigit HexDigit
+    | '\\' '{' // String template escape
     ;
 
 fragment HexDigits

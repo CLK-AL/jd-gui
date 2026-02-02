@@ -1,0 +1,23 @@
+[
+  {
+    "interfaces": ["java.awt.event.ActionListener"]
+  },
+  {
+    "interfaces": ["java.awt.event.MouseListener"]
+  },
+  {
+    "interfaces": ["java.awt.event.KeyListener"]
+  },
+  {
+    "interfaces": ["javax.swing.event.DocumentListener"]
+  },
+  {
+    "interfaces": ["javax.swing.event.TreeSelectionListener"]
+  },
+  {
+    "interfaces": ["javax.swing.event.ListSelectionListener"]
+  },
+  {
+    "interfaces": ["javax.swing.event.ChangeListener"]
+  }
+]

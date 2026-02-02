@@ -1,4 +1,17 @@
-include 'api', 'app', 'services'
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0'
+}
 
 rootProject.name = 'jd-gui'
 
+include 'api', 'app', 'services'
+
+// Enable Gradle features
+enableFeaturePreview('TYPESAFE_PROJECT_ACCESSORS')

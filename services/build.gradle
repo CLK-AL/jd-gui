@@ -1,35 +1,51 @@
-apply plugin: 'java'
-
-dependencies {
-    compile 'com.fifesoft:rsyntaxtextarea:3.0.4'
-    compile 'org.ow2.asm:asm:7.1'
-    compile 'org.jd:jd-core:' + parent.jdCoreVersion
-    compile project(':api')
-    testCompile 'junit:junit:4.12'
+plugins {
+    id 'java-library'
+    id 'antlr'
 }
 
 version = parent.version
 
-// ANTLR //
+dependencies {
+    // RSyntaxTextArea for syntax highlighting
+    implementation 'com.fifesoft:rsyntaxtextarea:3.4.0'
+
+    // ASM 9.6 for Java 21 bytecode support
+    implementation "org.ow2.asm:asm:${rootProject.asmVersion}"
+    implementation "org.ow2.asm:asm-util:${rootProject.asmVersion}"
+
+    // JD-Core decompiler
+    implementation 'org.jd:jd-core:' + parent.jdCoreVersion
+
+    // ANTLR 4.13.1
+    antlr "org.antlr:antlr4:${rootProject.antlrVersion}"
+    implementation "org.antlr:antlr4-runtime:${rootProject.antlrVersion}"
+
+    // Project dependencies
+    api project(':api')
+
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// ANTLR Configuration
 ext.antlr4 = [
-        antlrSource   : 'src/main/antlr',
-        destinationDir: 'src-generated/antlr/java',
-        grammarPackage: 'org.jd.gui.util.parser.antlr'
+    antlrSource   : 'src/main/antlr',
+    destinationDir: 'src-generated/antlr/java',
+    grammarPackage: 'org.jd.gui.util.parser.antlr'
 ]
 
-configurations {
-    antlr4 {
-        description = "ANTLR4"
+// Configure ANTLR task
+generateGrammarSource {
+    maxHeapSize = '512m'
+    arguments += ['-visitor', '-listener', '-long-messages']
+    outputDirectory = file("${antlr4.destinationDir}/${antlr4.grammarPackage.replace('.', '/')}")
+}
+
+task antlr4OutputDir {
+    doLast {
+        mkdir antlr4.destinationDir
     }
-}
-
-dependencies {
-    compile 'org.antlr:antlr4-runtime:4.5'
-    antlr4 'org.antlr:antlr4:4.5'
-}
-
-task antlr4OutputDir() {
-    mkdir antlr4.destinationDir
 }
 
 task antlr4GenerateGrammarSource(dependsOn: antlr4OutputDir, type: JavaExec) {
@@ -39,11 +55,11 @@ task antlr4GenerateGrammarSource(dependsOn: antlr4OutputDir, type: JavaExec) {
     outputs.dir file(antlr4.destinationDir)
 
     def grammars = fileTree(antlr4.antlrSource).include('**/*.g4')
-    def pkg = antlr4.grammarPackage.replaceAll("\\.", "/")
+    def pkg = antlr4.grammarPackage.replace(".", "/")
 
-    main = 'org.antlr.v4.Tool'
-    classpath = configurations.antlr4
-    args = ['-o', "${antlr4.destinationDir}/${pkg}", '-package', antlr4.grammarPackage, grammars.files].flatten()
+    mainClass = 'org.antlr.v4.Tool'
+    classpath = configurations.antlr
+    args = ['-o', "${antlr4.destinationDir}/${pkg}", '-package', antlr4.grammarPackage, '-visitor', '-listener', grammars.files].flatten()
 }
 
 compileJava {
@@ -57,6 +73,7 @@ clean {
 
 idea.module {
     sourceDirs += file(antlr4.destinationDir)
+    generatedSourceDirs += file(antlr4.destinationDir)
 }
 ideaModule.dependsOn antlr4GenerateGrammarSource
 
@@ -65,3 +82,15 @@ eclipse.classpath.file.withXml { xml ->
     node.appendNode('classpathentry', [kind: 'src', path: antlr4.destinationDir])
 }
 eclipseClasspath.dependsOn antlr4GenerateGrammarSource
+
+// Java 21 toolchain configuration
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// Test configuration
+test {
+    useJUnitPlatform()
+}

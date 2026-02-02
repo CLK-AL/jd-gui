@@ -1,0 +1,29 @@
+[
+  {
+    "name": "java.util.ArrayList"
+  },
+  {
+    "name": "java.util.HashMap"
+  },
+  {
+    "name": "java.util.HashSet"
+  },
+  {
+    "name": "java.util.LinkedHashMap"
+  },
+  {
+    "name": "java.util.TreeMap"
+  },
+  {
+    "name": "java.lang.String"
+  },
+  {
+    "name": "java.lang.Integer"
+  },
+  {
+    "name": "java.lang.Long"
+  },
+  {
+    "name": "java.lang.Boolean"
+  }
+]

@@ -4,6 +4,7 @@
  Copyright (c) 2017 Ivan Kochurkin (upgrade to Java 8)
  Copyright (c) 2021 Michał Lorek (upgrade to Java 11)
  Copyright (c) 2022 Michał Lorek (upgrade to Java 17)
+ Copyright (c) 2024 JD-GUI Contributors (upgrade to Java 21)
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -115,7 +116,7 @@ enumBodyDeclarations
     ;
 
 interfaceDeclaration
-    : INTERFACE identifier typeParameters? (EXTENDS typeList)? interfaceBody
+    : INTERFACE identifier typeParameters? (EXTENDS typeList)? (PERMITS typeList)? interfaceBody
     ;
 
 classBody
@@ -242,6 +243,7 @@ variableDeclarator
 
 variableDeclaratorId
     : identifier ('[' ']')*
+    | UNDERSCORE // Java 21+ unnamed variable
     ;
 
 variableInitializer
@@ -297,6 +299,7 @@ lambdaLVTIList
 
 lambdaLVTIParameter
     : variableModifier* VAR identifier
+    | UNDERSCORE // Java 21+ unnamed parameter
     ;
 
 qualifiedName
@@ -311,6 +314,7 @@ literal
     | BOOL_LITERAL
     | NULL_LITERAL
     | TEXT_BLOCK // Java17
+    | stringTemplate // Java21 preview
     ;
 
 integerLiteral
@@ -323,6 +327,12 @@ integerLiteral
 floatLiteral
     : FLOAT_LITERAL
     | HEX_FLOAT_LITERAL
+    ;
+
+// String Templates (Java 21+ preview)
+stringTemplate
+    : STRING_TEMPLATE_BEGIN expression (STRING_TEMPLATE_MID expression)* STRING_TEMPLATE_END
+    | TEXT_BLOCK_TEMPLATE_BEGIN expression (TEXT_BLOCK_TEMPLATE_MID expression)* TEXT_BLOCK_TEMPLATE_END
     ;
 
 // ANNOTATIONS
@@ -431,7 +441,8 @@ recordComponentList
     ;
 
 recordComponent
-    : typeType identifier
+    : annotation* typeType identifier
+    | annotation* typeType UNDERSCORE // Java 21+ unnamed component
     ;
 
 recordBody
@@ -471,6 +482,7 @@ identifier
     | PERMITS
     | RECORD
     | VAR
+    | WHEN // Java 21
     ;
 
 localTypeDeclaration
@@ -503,6 +515,7 @@ statement
 
 catchClause
     : CATCH '(' variableModifier* catchType identifier ')' block
+    | CATCH '(' variableModifier* catchType UNDERSCORE ')' block // Java 21+ unnamed catch
     ;
 
 catchType
@@ -535,7 +548,14 @@ switchBlockStatementGroup
 
 switchLabel
     : CASE (constantExpression=expression | enumConstantName=IDENTIFIER | typeType varName=identifier) ':'
+    | CASE casePattern (WHEN expression)? ':' // Java 21 pattern matching for switch
     | DEFAULT ':'
+    ;
+
+// Java 21 - Pattern matching in switch
+casePattern
+    : primaryPattern (',' primaryPattern)*
+    | NULL_LITERAL (',' DEFAULT)?
     ;
 
 forControl
@@ -610,9 +630,37 @@ expression
     | classType '::' typeArguments? NEW
     ;
 
-// Java17
+// Java 21 - Pattern (enhanced for record patterns)
 pattern
+    : primaryPattern
+    ;
+
+// Java 21 - Primary Pattern (includes record patterns, type patterns, unnamed patterns)
+primaryPattern
+    : typePattern
+    | recordPattern
+    | '(' pattern ')' // parenthesized pattern
+    | UNDERSCORE // unnamed pattern (Java 21+ preview)
+    ;
+
+// Java 21 - Type Pattern
+typePattern
     : variableModifier* typeType annotation* identifier
+    | variableModifier* typeType annotation* UNDERSCORE // unnamed type pattern
+    ;
+
+// Java 21 - Record Pattern (JEP 440)
+recordPattern
+    : typeType '(' recordPatternComponentList? ')'
+    ;
+
+recordPatternComponentList
+    : recordPatternComponent (',' recordPatternComponent)*
+    ;
+
+recordPatternComponent
+    : pattern
+    | UNDERSCORE // unnamed component pattern
     ;
 
 // Java8
@@ -623,6 +671,7 @@ lambdaExpression
 // Java8
 lambdaParameters
     : identifier
+    | UNDERSCORE // Java 21+ unnamed lambda parameter
     | '(' formalParameterList? ')'
     | '(' identifier (',' identifier)* ')'
     | '(' lambdaLVTIList? ')'
@@ -644,15 +693,20 @@ primary
     | nonWildcardTypeArguments (explicitGenericInvocationSuffix | THIS arguments)
     ;
 
-// Java17
+// Java17+
 switchExpression
     : SWITCH parExpression '{' switchLabeledRule* '}'
     ;
 
-// Java17
+// Java21 - Enhanced switch with pattern matching
 switchLabeledRule
-    : CASE (expressionList | NULL_LITERAL | guardedPattern) (ARROW | COLON) switchRuleOutcome
+    : CASE (expressionList | NULL_LITERAL (',' DEFAULT)? | switchPattern) (WHEN expression)? (ARROW | COLON) switchRuleOutcome
     | DEFAULT (ARROW | COLON) switchRuleOutcome
+    ;
+
+// Java21 - Switch pattern
+switchPattern
+    : primaryPattern (',' primaryPattern)*
     ;
 
 // Java17

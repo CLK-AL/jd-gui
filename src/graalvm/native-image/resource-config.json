@@ -1,0 +1,44 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "org/jd/gui/images/.*\\.png$"
+      },
+      {
+        "pattern": "org/jd/gui/images/.*\\.gif$"
+      },
+      {
+        "pattern": "org/jd/gui/images/.*\\.ico$"
+      },
+      {
+        "pattern": "META-INF/services/.*"
+      },
+      {
+        "pattern": "META-INF/MANIFEST.MF"
+      },
+      {
+        "pattern": ".*\\.properties$"
+      },
+      {
+        "pattern": ".*\\.xml$"
+      },
+      {
+        "pattern": "org/fife/ui/rsyntaxtextarea/.*"
+      },
+      {
+        "pattern": "org/fife/ui/rtextarea/.*"
+      },
+      {
+        "pattern": "themes/.*"
+      }
+    ]
+  },
+  "bundles": [
+    {
+      "name": "org.fife.ui.rsyntaxtextarea.RSyntaxTextArea"
+    },
+    {
+      "name": "org.fife.ui.rtextarea.RTextArea"
+    }
+  ]
+}

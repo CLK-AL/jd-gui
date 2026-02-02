@@ -1,10 +1,31 @@
-apply plugin: 'java'
-
-
-dependencies { //example
-    provided 'com.yuvimasory:orange-extensions:1.3.0'   // OSX support
-    compile project(':api')
-    runtime project(':services')
+plugins {
+    id 'java-library'
+    id 'application'
 }
 
 version = parent.version
+
+application {
+    mainClass = 'org.jd.gui.App'
+}
+
+dependencies {
+    // OSX support
+    compileOnly 'com.yuvimasory:orange-extensions:1.3.0'
+
+    // Project dependencies
+    api project(':api')
+    runtimeOnly project(':services')
+}
+
+// Java 21 toolchain configuration
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// Enable preview features for running
+run {
+    jvmArgs '--enable-preview'
+}

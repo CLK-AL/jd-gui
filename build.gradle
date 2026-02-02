@@ -1,43 +1,52 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.netflix.nebula:gradle-ospackage-plugin:5.3.0'    // RPM & DEB support
-        classpath 'edu.sc.seis.gradle:launch4j:2.4.4'
-        classpath 'net.sf.proguard:proguard-gradle:6.1.0'
-    }
+plugins {
+    id 'java'
+    id 'distribution'
+    id 'org.jetbrains.kotlin.jvm' version '1.9.22' apply false
+    id 'edu.sc.seis.launch4j' version '3.0.5'
+    id 'com.netflix.nebula.ospackage' version '11.6.0'
+    id 'org.graalvm.buildtools.native' version '0.9.28' apply false
 }
 
-apply plugin: 'java'
-apply plugin: 'distribution'
-apply plugin: 'edu.sc.seis.launch4j'
-apply plugin: 'nebula.ospackage'
-
 // Common configuration //
-rootProject.version = '2022.3.28'
-rootProject.description = 'JD-GUI (C) 2008-2022 Emmanuel Dupuy & Tomer Bar-Shlomo, a standalone graphical utility that displays Java sources from CLASS files'
+rootProject.version = '2024.1.0'
+rootProject.description = 'JD-GUI (C) 2008-2024 Emmanuel Dupuy & Tomer Bar-Shlomo, a standalone graphical utility that displays Java sources from CLASS files'
 rootProject.ext.set('jdCoreVersion', '1.1.3')
-targetCompatibility = '1.8'
+
+// Java 21 LTS support
+def javaVersion = JavaVersion.VERSION_21
+def kotlinVersion = '1.9.22'
+def antlrVersion = '4.13.1'
+def asmVersion = '9.6' // ASM 9.6 supports Java 21
+
+ext {
+    javaVersion = javaVersion
+    kotlinVersion = kotlinVersion
+    antlrVersion = antlrVersion
+    asmVersion = asmVersion
+}
 
 allprojects {
     apply plugin: 'eclipse'
     apply plugin: 'idea'
 
-    tasks.withType(JavaCompile) {
-        sourceCompatibility = targetCompatibility = '1.8'
-        options.compilerArgs << '-Xlint:deprecation'
-        options.compilerArgs << '-Xlint:unchecked'
+    tasks.withType(JavaCompile).configureEach {
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
         options.encoding = 'UTF-8'
+        options.compilerArgs.addAll(['-Xlint:deprecation', '-Xlint:unchecked'])
+        // Enable preview features for Java 21
+        options.compilerArgs.addAll(['--enable-preview'])
     }
 
     repositories {
-        jcenter()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
     }
 
     configurations {
         provided
-        compile.extendsFrom provided
+        compileOnly.extendsFrom provided
+        implementation.extendsFrom provided
     }
 }
 
@@ -64,10 +73,10 @@ jar {
     subprojects.each { subproject ->
         from subproject.sourceSets.main.output.classesDirs
         from subproject.sourceSets.main.output.resourcesDir
-        deps += subproject.configurations.runtime - subproject.configurations.provided
+        deps += subproject.configurations.runtimeClasspath - subproject.configurations.compileOnly
     }
     subprojects.each { subproject ->
-        deps -= subproject.jar.archivePath
+        deps -= subproject.jar.archiveFile.get().asFile
     }
     deps = deps.unique().collect { it.isDirectory() ? it : zipTree(it) }
     from deps
@@ -78,7 +87,8 @@ jar {
                 'JD-GUI-Version': project.version,
                 'JD-GUI-Description': project.description,
                 'JD-Core-Version': project.jdCoreVersion,
-                'Quiltflower-Version': '1.7.0'
+                'Quiltflower-Version': '1.9.0',
+                'Multi-Release': 'true'
     }
     exclude 'META-INF/licenses/**', 'META-INF/maven/**', 'META-INF/INDEX.LIST'
     exclude '**/ErrorStrip_*.properties', '**/RSyntaxTextArea_*.properties', '**/RTextArea_*.properties'
@@ -102,45 +112,77 @@ jar {
     }
 }
 
-// Minify JAR file //
-task proguard(type: proguard.gradle.ProGuardTask, dependsOn: 'jar') {
-    configuration 'src/proguard/resources/proguard.config.txt'
-    injars jar.archivePath
-    outjars 'build/libs/' + project.name + '-' + project.version + '-min.jar'
-    libraryjars System.getProperty('java.home') + '/lib/rt.jar'
-    libraryjars System.getProperty('java.home') + '/jmods/'
+// Minify JAR file using ProGuard //
+configurations {
+    proguard
 }
+
+dependencies {
+    proguard 'com.guardsquare:proguard-gradle:7.4.2'
+}
+
+task proguard(type: JavaExec, dependsOn: 'jar') {
+    def inputJar = jar.archiveFile.get().asFile
+    def outputJar = file("build/libs/${project.name}-${project.version}-min.jar")
+
+    inputs.file inputJar
+    outputs.file outputJar
+
+    mainClass = 'proguard.ProGuard'
+    classpath = configurations.proguard
+
+    args = [
+        '-injars', inputJar.absolutePath,
+        '-outjars', outputJar.absolutePath,
+        '-libraryjars', "${System.getProperty('java.home')}/jmods/java.base.jmod(!**.jar;!module-info.class)",
+        '-libraryjars', "${System.getProperty('java.home')}/jmods/java.desktop.jmod(!**.jar;!module-info.class)",
+        '-libraryjars', "${System.getProperty('java.home')}/jmods/java.logging.jmod(!**.jar;!module-info.class)",
+        '-libraryjars', "${System.getProperty('java.home')}/jmods/java.prefs.jmod(!**.jar;!module-info.class)",
+        '-libraryjars', "${System.getProperty('java.home')}/jmods/java.xml.jmod(!**.jar;!module-info.class)",
+        '@src/proguard/resources/proguard.config.txt'
+    ]
+
+    jvmArgs = ['--add-opens', 'java.base/java.lang=ALL-UNNAMED']
+}
+
+ext.minJarPath = "build/libs/${project.name}-${project.version}-min.jar"
 
 // Java executable wrapper for Windows //
 launch4j {
-    createExe.dependsOn 'proguard'
+    dependsOn 'proguard'
 
-    version = textVersion = project.version
-    fileDescription = productName = 'JD-GUI'
-    errTitle 'JD-GUI Windows Wrapper'
+    mainClassName = 'org.jd.gui.App'
+    headerType = 'gui'
+    jarTask = project.tasks.proguard
+    outfile = 'jd-gui.exe'
+    icon = "${projectDir}/src/launch4j/resources/images/jd-gui.ico"
+    version = project.version
+    textVersion = project.version
     copyright = project.description
-    icon projectDir.path + '/src/launch4j/resources/images/jd-gui.ico'
-    jar projectDir.path + '/' + proguard.outJarFiles[0]
+    companyName = 'JD Project'
+    fileDescription = 'JD-GUI'
+    productName = 'JD-GUI'
+    jreMinVersion = '21'
     bundledJrePath = '%JAVA_HOME%'
+    errTitle = 'JD-GUI Windows Wrapper'
 }
 
 // Packages for Linux //
 ospackage {
-    buildDeb.dependsOn 'proguard'
-    buildRpm.dependsOn 'proguard'
+    dependsOn 'proguard'
 
     license = file('LICENSE')
-    maintainer 'Emmanuel Dupuy <emmanue1@users.noreply.github.com>'
-    os LINUX
+    maintainer = 'Emmanuel Dupuy <emmanue1@users.noreply.github.com>'
+    os = LINUX
     packageDescription = project.description
-    packageGroup 'java'
-    packageName project.name
+    packageGroup = 'java'
+    packageName = project.name
     release = project.version
-    summary 'A Java Decompiler'
-    url 'https://github.com/java-decompiler/jd-gui'
+    summary = 'A Java Decompiler'
+    url = 'https://github.com/java-decompiler/jd-gui'
 
     into '/opt/' + project.name
-    from(proguard.outJarFiles[0]) {
+    from(file(minJarPath)) {
         fileMode 0755
     }
     from('src/linux/resources/') {
@@ -148,44 +190,64 @@ ospackage {
     }
     from 'LICENSE', 'NOTICE', 'README.md'
 
-    postInstall 'cd /opt/' + project.name + '; ln -s ./' + file(proguard.outJarFiles[0]).name + ' ./jd-gui.jar; xdg-icon-resource install --size 128 --novendor ./jd_icon_128.png jd-gui; xdg-desktop-menu install ./*.desktop'
+    postInstall 'cd /opt/' + project.name + '; ln -s ./' + file(minJarPath).name + ' ./jd-gui.jar; xdg-icon-resource install --size 128 --novendor ./jd_icon_128.png jd-gui; xdg-desktop-menu install ./*.desktop'
     preUninstall 'cd /opt/' + project.name + '; rm -f ./jd-gui.jar; rm -fr ./ext; xdg-desktop-menu uninstall ./*.desktop'
 }
 
+buildDeb.dependsOn 'proguard'
+buildRpm.dependsOn 'proguard'
+
 // Distributions for OSX and Windows //
 distributions {
-    osx.contents {
-        into('JD-GUI.app/Contents') {
-            from('src/osx/resources') {
-                include 'Info.plist'
-                expand VERSION: project.version,
-                        JAR: file(proguard.outJarFiles[0]).name
+    osx {
+        contents {
+            into('JD-GUI.app/Contents') {
+                from('src/osx/resources') {
+                    include 'Info.plist'
+                    expand VERSION: project.version,
+                            JAR: file(minJarPath).name
+                }
             }
-        }
-        into('JD-GUI.app/Contents/MacOS') {
-            from('src/osx/resources') {
-                include 'universalJavaApplicationStub.sh'
-                fileMode 0755
+            into('JD-GUI.app/Contents/MacOS') {
+                from('src/osx/resources') {
+                    include 'universalJavaApplicationStub.sh'
+                    fileMode 0755
+                }
             }
+            into('JD-GUI.app/Contents/Resources/Java') {
+                from file(minJarPath)
+            }
+            from 'LICENSE', 'NOTICE', 'README.md'
         }
-        into('JD-GUI.app/Contents/Resources/Java') {
-            from proguard.outJarFiles[0]
+    }
+    windows {
+        contents {
+            from 'build/launch4j/jd-gui.exe'
+            from 'LICENSE', 'NOTICE', 'README.md'
         }
-        from 'LICENSE', 'NOTICE', 'README.md'
     }
-    windows.contents {
-        from 'build/launch4j/jd-gui.exe'
-        from 'LICENSE', 'NOTICE', 'README.md'
-    }
-
-    installWindowsDist.dependsOn createExe
-    windowsDistTar.dependsOn createExe
-    windowsDistZip.dependsOn createExe
-
-    installOsxDist.dependsOn 'proguard'
-    osxDistTar.dependsOn 'proguard'
-    osxDistZip.dependsOn 'proguard'
 }
+
+installWindowsDist.dependsOn createExe
+windowsDistTar.dependsOn createExe
+windowsDistZip.dependsOn createExe
+
+installOsxDist.dependsOn 'proguard'
+osxDistTar.dependsOn 'proguard'
+osxDistZip.dependsOn 'proguard'
 
 build.finalizedBy buildDeb
 build.finalizedBy buildRpm
+
+// GraalVM Native Image configuration
+task nativeImageConfig(type: Copy) {
+    description = 'Copy GraalVM native-image configuration'
+    from 'src/graalvm/native-image'
+    into 'build/native-image-config'
+}
+
+// Wrapper task for convenient Gradle wrapper updates
+wrapper {
+    gradleVersion = '8.5'
+    distributionType = Wrapper.DistributionType.BIN
+}

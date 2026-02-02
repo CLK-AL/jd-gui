@@ -1,0 +1,96 @@
+[
+  {
+    "name": "org.jd.gui.App",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "org.jd.gui.view.MainView",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "javax.swing.plaf.metal.MetalLookAndFeel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "javax.swing.plaf.nimbus.NimbusLookAndFeel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.sun.java.swing.plaf.gtk.GTKLookAndFeel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.sun.java.swing.plaf.windows.WindowsLookAndFeel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.apple.laf.AquaLookAndFeel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "org.fife.ui.rsyntaxtextarea.RSyntaxTextArea",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "org.fife.ui.rsyntaxtextarea.RSyntaxTextAreaUI",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "org.fife.ui.rtextarea.RTextArea",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "org.antlr.v4.runtime.Parser",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "org.antlr.v4.runtime.Lexer",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "org.jd.gui.util.parser.antlr4.JavaParser",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "org.jd.gui.util.parser.antlr4.JavaLexer",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "sun.awt.X11GraphicsEnvironment",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "sun.awt.X11.XToolkit",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "java.awt.Toolkit",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "sun.java2d.opengl.OGLRenderQueue$QueueFlusher",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]
