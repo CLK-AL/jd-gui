@@ -1,0 +1,81 @@
+@startuml Supported Languages
+
+title Multi-Language Syntax Highlighting Support
+
+skinparam packageStyle rectangle
+skinparam componentBackgroundColor #e8f4e8
+
+package "JVM Languages" #lightblue {
+    [Java 8/9/20/latest]
+    [Kotlin]
+    [Scala]
+    [Groovy]
+    [Clojure]
+}
+
+package "Web Languages" #lightyellow {
+    [JavaScript]
+    [TypeScript]
+    [HTML]
+    [CSS3]
+    [LESS]
+    [SCSS]
+    [PHP]
+}
+
+package "Systems Languages" #lightcoral {
+    [C]
+    [C++ (14)]
+    [C#]
+    [Rust]
+    [Go]
+    [Zig]
+    [Swift]
+}
+
+package "Scripting Languages" #lightgreen {
+    [Python 3]
+    [Ruby]
+    [Perl]
+    [Lua]
+    [Shell/Bash]
+}
+
+package "Data & Query" #lavender {
+    [JSON / JSON5]
+    [XML]
+    [YAML]
+    [TOML]
+    [GraphQL]
+    [SQL Dialects]
+}
+
+package "SQL Dialects" #wheat {
+    [MySQL]
+    [PostgreSQL]
+    [SQLite]
+    [T-SQL]
+    [PL/SQL]
+    [Hive]
+    [Snowflake]
+    [ClickHouse]
+}
+
+package "Other Languages" #mistyrose {
+    [Protobuf 2/3]
+    [Thrift]
+    [Terraform]
+    [Dockerfile]
+    [Makefile]
+    [Markdown]
+}
+
+note bottom
+  **Total: 55+ Languages**
+  **118 Grammar Files**
+
+  All grammars sourced from
+  official ANTLR grammars-v4
+end note
+
+@enduml

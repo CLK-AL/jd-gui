@@ -1,0 +1,58 @@
+@startuml Decompiler Flow
+
+title Decompilation and Syntax Highlighting Flow
+
+skinparam activityBackgroundColor #f5f5f5
+skinparam activityBorderColor #333333
+
+|User|
+start
+:Open .class or .jar file;
+
+|JD-GUI|
+:Load bytecode with ASM 9.6;
+
+if (Single class?) then (yes)
+    :Decompile with JD-Core;
+else (jar/Save All Sources)
+    :Decompile with Vineflower;
+endif
+
+:Get Java source code;
+
+|Language Provider|
+:Lookup LanguageSyntaxProvider\nby file extension (.java);
+
+:Get TokenMaker class name;
+
+|RSyntaxTextArea|
+:Register TokenMaker;
+:Apply syntax highlighting;
+
+|ANTLR Parser|
+:Parse source with\nJava grammar (latest/8/9/20);
+
+:Extract declarations\n(classes, methods, fields);
+
+:Extract references\n(type usage, method calls);
+
+|JD-GUI|
+:Build navigation index;
+:Enable hyperlink navigation;
+:Display in editor;
+
+|User|
+:Browse decompiled source;
+:Click to navigate;
+
+stop
+
+note right
+  **Supported Java Versions**
+  - Java 8: Basic features
+  - Java 9: Modules
+  - Java 20: Records, Patterns
+  - Latest: Java 24+ features
+end note
+
+@enduml

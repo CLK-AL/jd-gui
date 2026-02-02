@@ -1,0 +1,68 @@
+@startuml Module Overview
+
+title JD-GUI Module Architecture
+
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+
+package "JD-GUI Application" {
+
+    component [app] as app {
+        [Main Entry Point]
+        [GUI Framework]
+    }
+
+    component [api] as api {
+        [LanguageSyntaxProvider SPI]
+        [LanguageSyntaxProviderRegistry]
+        [ANTLR Grammars (118 files)]
+        [Vineflower Decompiler API]
+    }
+
+    component [services] as services {
+        [30+ Language Providers]
+        [Custom TokenMakers]
+        [Java ANTLR Parser]
+        [File Loaders/Savers]
+    }
+}
+
+database "External Libraries" {
+    [ANTLR 4.13.1]
+    [RSyntaxTextArea 3.4.0]
+    [Vineflower 1.11.0]
+    [JD-Core 1.1.3]
+    [ASM 9.6]
+}
+
+cloud "grammars-v4" {
+    [Official ANTLR Grammars]
+}
+
+app --> api : depends on
+app --> services : depends on
+services --> api : depends on
+
+api ..> [ANTLR 4.13.1] : uses
+api ..> [Vineflower 1.11.0] : uses
+services ..> [RSyntaxTextArea 3.4.0] : uses
+services ..> [JD-Core 1.1.3] : uses
+services ..> [ASM 9.6] : uses
+
+api <.. [Official ANTLR Grammars] : sourced from
+
+note right of api
+  **api module**
+  - Core SPI interfaces
+  - ANTLR grammar library
+  - Decompiler integration
+end note
+
+note right of services
+  **services module**
+  - Language implementations
+  - Syntax highlighting
+  - File handling
+end note
+
+@enduml

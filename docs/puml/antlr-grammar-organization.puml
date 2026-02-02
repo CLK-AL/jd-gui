@@ -1,0 +1,72 @@
+@startuml ANTLR Grammar Organization
+
+title ANTLR Grammar Organization by Language/Version
+
+skinparam packageStyle folder
+skinparam folderBackgroundColor #f5f5f5
+
+folder "api/src/main/antlr4" as antlr4 {
+    folder "java" {
+        folder "8" as java8 {
+            file "Java8Lexer.g4"
+            file "Java8Parser.g4"
+        }
+        folder "9" as java9 {
+            file "Java9Lexer.g4"
+            file "Java9Parser.g4"
+        }
+        folder "20" as java20 {
+            file "Java20Lexer.g4"
+            file "Java20Parser.g4"
+        }
+        folder "latest" as javalatest {
+            file "JavaLexer.g4"
+            file "JavaParser.g4"
+        }
+    }
+
+    folder "kotlin" {
+        folder "spec" {
+            file "KotlinLexer.g4"
+            file "KotlinParser.g4"
+            file "UnicodeClasses.g4"
+        }
+    }
+
+    folder "sql" {
+        folder "mysql" {
+            file "MySQLLexer.g4"
+            file "MySQLParser.g4"
+        }
+        folder "postgresql" {
+            file "PostgreSQLLexer.g4"
+            file "PostgreSQLParser.g4"
+        }
+        folder "sqlite" {
+            file "SQLiteLexer.g4"
+            file "SQLiteParser.g4"
+        }
+    }
+
+    folder "python" {
+        folder "3" {
+            file "Python3Lexer.g4"
+            file "Python3Parser.g4"
+        }
+    }
+
+    folder "..." as others {
+        note "55+ languages\n118 grammar files" as n1
+    }
+}
+
+note top of antlr4
+  **Directory Structure**
+  antlr4/{language}/{version}/*.g4
+
+  **Gradle Configuration**
+  -PantlrLanguage=java -PantlrVersion=20
+  -PantlrLanguage=kotlin -PantlrVersion=spec
+end note
+
+@enduml

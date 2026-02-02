@@ -1,0 +1,101 @@
+@startuml Language Syntax Provider Architecture
+
+title Language Syntax Provider - SPI Architecture
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "api" {
+    interface LanguageSyntaxProvider <<SPI>> {
+        +getLanguageId(): String
+        +getDisplayName(): String
+        +getSyntaxStyle(): String
+        +getFileExtensions(): Collection<String>
+        +getTokenMakerClassName(): String
+        +parse(input: CharStream, listener: ParseTreeListener)
+        +createDeclarationListener(): LanguageDeclarationListener
+        +createReferenceListener(): LanguageReferenceListener
+        +getPriority(): int
+    }
+
+    class LanguageSyntaxProviderRegistry {
+        -providers: Map<String, LanguageSyntaxProvider>
+        +{static} getInstance(): LanguageSyntaxProviderRegistry
+        +getProvider(languageId: String): LanguageSyntaxProvider
+        +getProviderByExtension(ext: String): LanguageSyntaxProvider
+        +getProviderBySyntaxStyle(style: String): LanguageSyntaxProvider
+        +getAllProviders(): Collection<LanguageSyntaxProvider>
+        +registerTokenMakers()
+    }
+
+    interface LanguageDeclarationListener {
+        +getDeclarations(): List<Declaration>
+    }
+
+    interface LanguageReferenceListener {
+        +getReferences(): List<Reference>
+    }
+}
+
+package "services" {
+    abstract class AbstractLanguageSyntaxProvider {
+        #languageId: String
+        #displayName: String
+        #syntaxStyle: String
+        #fileExtensions: Collection<String>
+        +getPriority(): int
+    }
+
+    class JavaLanguageSyntaxProvider {
+        +parse(input, listener)
+        +createDeclarationListener()
+    }
+
+    class KotlinLanguageSyntaxProvider {
+        +getTokenMakerClassName()
+    }
+
+    class TypeScriptLanguageSyntaxProvider
+    class PythonLanguageSyntaxProvider
+    class GraphQLLanguageSyntaxProvider
+    class SqlLanguageSyntaxProvider
+}
+
+package "view.component" {
+    class KotlinTokenMaker {
+        +getWordsToHighlight(): TokenMap
+        +getTokenList(): Token
+    }
+
+    class GraphQLTokenMaker
+    class ProtobufTokenMaker
+    class Java21TokenMaker
+}
+
+LanguageSyntaxProvider <|.. AbstractLanguageSyntaxProvider
+AbstractLanguageSyntaxProvider <|-- JavaLanguageSyntaxProvider
+AbstractLanguageSyntaxProvider <|-- KotlinLanguageSyntaxProvider
+AbstractLanguageSyntaxProvider <|-- TypeScriptLanguageSyntaxProvider
+AbstractLanguageSyntaxProvider <|-- PythonLanguageSyntaxProvider
+AbstractLanguageSyntaxProvider <|-- GraphQLLanguageSyntaxProvider
+AbstractLanguageSyntaxProvider <|-- SqlLanguageSyntaxProvider
+
+LanguageSyntaxProviderRegistry o-- LanguageSyntaxProvider : manages >
+
+KotlinLanguageSyntaxProvider ..> KotlinTokenMaker : uses
+GraphQLLanguageSyntaxProvider ..> GraphQLTokenMaker : uses
+
+note right of LanguageSyntaxProvider
+  Service Provider Interface (SPI)
+  Discovered via ServiceLoader
+  META-INF/services/org.jd.gui.spi.LanguageSyntaxProvider
+end note
+
+note bottom of LanguageSyntaxProviderRegistry
+  Central registry for all language providers
+  - Automatic discovery via ServiceLoader
+  - Lookup by language ID, extension, or syntax style
+  - Registers custom TokenMakers with RSyntaxTextArea
+end note
+
+@enduml
