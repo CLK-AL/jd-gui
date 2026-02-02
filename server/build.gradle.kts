@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
+    kotlin("kapt")
     id("io.ktor.plugin") version "2.3.7"
     application
 }
@@ -74,6 +75,10 @@ dependencies {
 
     // Guava for MapDifference utilities
     implementation("com.google.guava:guava:33.0.0-jre")
+
+    // MapStruct for object mapping
+    implementation("org.mapstruct:mapstruct:1.5.5.Final")
+    kapt("org.mapstruct:mapstruct-processor:1.5.5.Final")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
