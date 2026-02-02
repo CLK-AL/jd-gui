@@ -1,0 +1,3 @@
+# Language syntax providers for ANTLR parsing and RSyntaxTextArea highlighting
+# Add new language providers below (one fully qualified class name per line)
+org.jd.gui.service.language.JavaLanguageSyntaxProvider
