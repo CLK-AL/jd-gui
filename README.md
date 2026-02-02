@@ -11,6 +11,7 @@ reconstructed source code with the JD-GUI for instant access to methods and fiel
 - JD-GUI source code: [https://github.com/java-decompiler/jd-gui](https://github.com/java-decompiler/jd-gui)
 - Vineflower source code: [https://github.com/Vineflower/vineflower](https://github.com/Vineflower/vineflower)
 - QuiltFlower source code (legacy): [https://github.com/QuiltMC/quiltflower](https://github.com/QuiltMC/quiltflower)
+- ANTLR Java grammar: [grammars-v4/java](https://github.com/antlr/grammars-v4/tree/master/java/java)
 
 ## Changes in this fork 2024.1.0
 
@@ -45,7 +46,7 @@ reconstructed source code with the JD-GUI for instant access to methods and fiel
 ## Additional Features
 
 - Custom RSyntaxTextArea TokenMaker for Java 21 keyword highlighting
-- ANTLR grammar supports Java 8 through Java 21 syntax parsing
+- ANTLR grammar (`services/src/main/antlr/Java.g4`) upgraded using [grammars-v4/java](https://github.com/antlr/grammars-v4/tree/master/java/java) for Java 8-21 syntax parsing
 - Planned: Integration with other decompiler libraries like [CFR](https://github.com/leibnitz27/cfr)
 
 ## How to build JD-GUI ?
