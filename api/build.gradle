@@ -5,12 +5,16 @@ plugins {
 
 version = parent.version
 
-// ANTLR 4.13 Configuration
+// ANTLR 4.13 Configuration - Java 21 grammars by default
+// Available grammar versions: java8, java21
 ext.antlr4 = [
+    javaVersion   : findProperty('antlrJavaVersion') ?: 'java21',
     antlrSource   : 'src/main/antlr4',
     destinationDir: 'src-generated/antlr4/java',
     grammarPackage: 'org.jd.gui.util.parser.antlr4'
 ]
+// Resolve grammar source directory based on Java version
+ext.antlr4.grammarDir = "${antlr4.antlrSource}/${antlr4.javaVersion}"
 
 dependencies {
     // ANTLR 4.13.1 with Java 21 support
@@ -38,10 +42,10 @@ task antlr4OutputDir {
 task antlr4GenerateGrammarSource(dependsOn: antlr4OutputDir, type: JavaExec) {
     description = 'Generates Java sources from ANTLR4 grammars.'
 
-    inputs.dir file(antlr4.antlrSource)
+    inputs.dir file(antlr4.grammarDir)
     outputs.dir file(antlr4.destinationDir)
 
-    def grammars = fileTree(antlr4.antlrSource).include('**/*.g4')
+    def grammars = fileTree(antlr4.grammarDir).include('**/*.g4')
     def pkg = antlr4.grammarPackage.replace(".", "/")
 
     mainClass = 'org.antlr.v4.Tool'
