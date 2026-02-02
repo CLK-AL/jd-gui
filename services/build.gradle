@@ -28,10 +28,10 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-// ANTLR Configuration - Java 21 grammars by default
-// Available grammar versions: java8, java21
+// ANTLR Configuration - Latest Java grammars by default
+// Available grammar versions: java8, java21, latest (Java 24+)
 ext.antlr4 = [
-    javaVersion   : findProperty('antlrJavaVersion') ?: 'java21',
+    javaVersion   : findProperty('antlrJavaVersion') ?: 'latest',
     antlrSource   : 'src/main/antlr',
     destinationDir: 'src-generated/antlr/java',
     grammarPackage: 'org.jd.gui.util.parser.antlr'

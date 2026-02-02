@@ -5,10 +5,10 @@ plugins {
 
 version = parent.version
 
-// ANTLR 4.13 Configuration - Java 21 grammars by default
-// Available grammar versions: java8, java21
+// ANTLR 4.13 Configuration - Latest Java grammars by default
+// Available grammar versions: java8, java21, latest (Java 24+)
 ext.antlr4 = [
-    javaVersion   : findProperty('antlrJavaVersion') ?: 'java21',
+    javaVersion   : findProperty('antlrJavaVersion') ?: 'latest',
     antlrSource   : 'src/main/antlr4',
     destinationDir: 'src-generated/antlr4/java',
     grammarPackage: 'org.jd.gui.util.parser.antlr4'
@@ -17,7 +17,7 @@ ext.antlr4 = [
 ext.antlr4.grammarDir = "${antlr4.antlrSource}/${antlr4.javaVersion}"
 
 dependencies {
-    // ANTLR 4.13.1 with Java 21 support
+    // ANTLR 4.13.1 with Java 24+ support
     antlr "org.antlr:antlr4:${rootProject.antlrVersion}"
     api "org.antlr:antlr4-runtime:${rootProject.antlrVersion}"
 
