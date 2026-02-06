@@ -1268,16 +1268,32 @@ package "Staged LOD Pipeline" #E1F5FE {
     class FileStreamSource <<abstraction>> {
         +openStream(): InputStream
         +getMetadata(): SourceMetadata
+        +{static} fromUri(uri): FileStreamSource
+        +{static} buildJarUrl(archive, entry): String
+        +{static} buildNestedJarUrl(outer, inner, entry): String
     }
     note right of FileStreamSource
-        **URI Schemes Supported:**
-        - file:// (local filesystem)
-        - http://, https:// (WebDAV/Sardine)
-        - zip://, jar:// (archive entry)
-        - tar://, tgz:// (compressed)
+        **Java Standard URI Formats:**
         --
-        **WebDAV Archive Format:**
-        https://server/path/archive.zip!/entry/file.txt
+        **file:** Local filesystem
+        file:/path/to/file.txt
+        --
+        **jar:** JarURLConnection (Java SE)
+        jar:file:/lib.jar!/com/Example.class
+        jar:http://server/lib.jar!/META-INF/MANIFEST.MF
+        --
+        **jar:jar:** Nested JAR (Spring Boot)
+        jar:jar:file:/boot.jar!/BOOT-INF/lib/dep.jar!/Class.class
+        --
+        **jrt:** Java Runtime Modules (Java 9+)
+        jrt:/java.base/java/lang/Object.class
+        --
+        **classpath:** Spring-compatible pseudo-protocol
+        classpath:application.properties
+        classpath:META-INF/services/Factory
+        --
+        **http/https:** WebDAV (Sardine 5.12)
+        https://webdav.server/files/doc.pdf
     end note
 
     class PipelineCamelContext <<camel>> {
