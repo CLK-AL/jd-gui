@@ -2,160 +2,402 @@
 
 !theme plain
 skinparam backgroundColor #FEFEFE
-skinparam classFontSize 12
-skinparam noteFontSize 10
+skinparam classFontSize 11
+skinparam noteFontSize 9
 skinparam packageStyle rectangle
+skinparam wrapWidth 300
 
 title JD-GUI MIME Types and File Extension Handler Architecture
+caption Comprehensive view of file type handling with SPI-based extensible architecture
 
 ' ========================================
-' Core Registry
+' Core Registry & SPI Framework
 ' ========================================
-package "Core Registry" #E8F5E9 {
-    interface LanguageSyntaxProvider {
+package "Core SPI Framework" #E8F5E9 {
+    interface LanguageSyntaxProvider <<SPI>> {
         +languageId: String
         +displayName: String
         +syntaxStyle: String
         +fileExtensions: Collection<String>
         +priority: Int
+        --
         +tokenize(source: String): List<SyntaxToken>
-        +extractDeclarations(source: String): List<Declaration>
-        +extractReferences(source: String): List<Reference>
+        +extractDeclarations(source: String)
+        +extractReferences(source: String)
         +supportsExtension(ext: String): Boolean
     }
+    note top of LanguageSyntaxProvider
+        **SPI Registration:**
+        META-INF/services/org.jd.gui.spi.LanguageSyntaxProvider
+        **40+ providers registered**
+        **Pattern:** Strategy Pattern
+    end note
 
-    interface LanguageSyntaxProviderKt {
-        +languageId: String
-        +displayName: String
-        +syntaxStyle: String
-        +fileExtensions: Collection<String>
-        +tokenMakerClassName: String
-        +priority: Int
-        +parse(input: CharStream, listener: ParseTreeListener)
-        +createDeclarationListener(): LanguageDeclarationListenerKt?
-        +createReferenceListener(): LanguageReferenceListenerKt?
+    interface TreeNodeFactory <<SPI>> {
+        +getSelectors(): String[]
+        +getPathFactory(): PathFactory
+        +make(api, entry): TreeNode
+    }
+    note right of TreeNodeFactory
+        **SPI Registration:**
+        META-INF/services/org.jd.gui.spi.TreeNodeFactory
+        **35+ factories registered**
+        **Pattern:** Factory Pattern
+    end note
+
+    interface ContainerFactory <<SPI>> {
+        +getType(): String
+        +accept(api, path): Boolean
+        +make(api, container, entry): Container
+    }
+    note right of ContainerFactory
+        **7 implementations:**
+        - KarContainerFactoryProvider
+        - JavaModuleContainerFactoryProvider
+        - EarContainerFactoryProvider
+        - WarContainerFactoryProvider
+        - JarContainerFactoryProvider
+        - GenericContainerFactoryProvider
+    end note
+
+    interface FileLoader <<SPI>> {
+        +getExtensions(): String[]
+        +load(api, file): FileLoader.Entry
+    }
+    note right of FileLoader
+        **10 implementations:**
+        - AarFileLoaderProvider
+        - ClassFileLoaderProvider
+        - EarFileLoaderProvider
+        - JarFileLoaderProvider
+        - JavaFileLoaderProvider
+        - JavaModuleFileLoaderProvider
+        - KarFileLoaderProvider
+        - LogFileLoaderProvider
+        - WarFileLoaderProvider
+        - ZipFileLoaderProvider
+    end note
+
+    class LanguageSyntaxProviderRegistry <<Registry>> {
+        -providers: Map<String, LanguageSyntaxProvider>
+        +getProviderByLanguage(id): LanguageSyntaxProvider?
+        +getProviderByExtension(ext): LanguageSyntaxProvider?
+        +registerProvider(provider)
     }
 
-    class LanguageSyntaxProviderRegistry <<expect/actual>> {
-        +getProviders(): List<LanguageSyntaxProvider>
-        +getProviderByLanguage(id: String): LanguageSyntaxProvider?
-        +getProviderByExtension(ext: String): LanguageSyntaxProvider?
-        +registerProvider(provider: LanguageSyntaxProvider)
-    }
+    LanguageSyntaxProviderRegistry --> LanguageSyntaxProvider : manages
 }
 
 ' ========================================
-' Programming Languages
+' Java/JVM Languages
 ' ========================================
-package "Programming Languages" #E3F2FD {
-    class JavaProvider <<handler>> {
+package "Java/JVM Languages" #E3F2FD {
+    class JavaHandler <<handler>> {
         languageId = "java"
         syntaxStyle = "text/java"
         extensions = [java]
     }
-    note right of JavaProvider
+    note right of JavaHandler
+        **MIME:** text/x-java-source
         **ANTLR Grammar:** Java20Parser.g4
         **TokenMaker:** JavaTokenMaker
-        **MIME:** text/x-java-source
+        **TreeNode:** JavaFileTreeNodeFactoryProvider
+        **Loader:** JavaFileLoaderProvider
+        **Page:** JavaFilePage (RSyntaxTextArea)
+        --
+        **Processing:**
+        1. Parse with ANTLR Java20Lexer/Parser
+        2. Extract declarations (classes, methods, fields)
+        3. Build reference hyperlinks
+        4. Syntax highlight with RSyntaxTextArea
     end note
 
-    class KotlinProvider <<handler>> {
+    class ClassHandler <<handler>> {
+        extensions = [class]
+    }
+    note right of ClassHandler
+        **MIME:** application/java-vm
+        **Handler:** ClassFileTreeNodeFactoryProvider
+        **Loader:** ClassFileLoaderProvider
+        **Page:** DynamicPage
+        --
+        **Processing:**
+        1. Read with ASM ClassReader
+        2. Extract class version (major.minor)
+        3. Show compiler version info
+        4. Decompile with Fernflower/Vineflower
+        5. Display original source if available
+        --
+        **Excludes:** module-info.class
+    end note
+
+    class KotlinHandler <<handler>> {
         languageId = "kotlin"
-        syntaxStyle = "text/kotlin"
         extensions = [kt, kts]
     }
-    note right of KotlinProvider
+    note right of KotlinHandler
+        **MIME:** text/x-kotlin
         **ANTLR Grammar:** KotlinParser.g4
         **TokenMaker:** KotlinTokenMaker
-        **MIME:** text/x-kotlin
+        **TreeNode:** KotlinFileTreeNodeFactoryProvider
+        --
+        **Processing:**
+        1. Parse with KotlinParser/KotlinLexer
+        2. Extract top-level functions/properties
+        3. Handle extension functions
+        4. Support DSL syntax highlighting
     end note
 
-    class TypeScriptProvider <<handler>> {
+    class ScalaHandler <<handler>> {
+        languageId = "scala"
+        extensions = [scala, sc]
+    }
+    note right of ScalaHandler
+        **MIME:** text/x-scala
+        **TokenMaker:** ScalaTokenMaker
+        **Features:** Case classes, traits, implicits
+    end note
+
+    class GroovyHandler <<handler>> {
+        languageId = "groovy"
+        extensions = [groovy, gvy]
+    }
+    note right of GroovyHandler
+        **MIME:** text/x-groovy
+        **TokenMaker:** GroovyTokenMaker
+        **Used for:** Gradle build scripts
+    end note
+}
+
+' ========================================
+' Web/JavaScript Languages
+' ========================================
+package "Web Languages" #FCE4EC {
+    class TypeScriptHandler <<handler>> {
         languageId = "typescript"
-        syntaxStyle = "text/typescript"
         extensions = [ts, tsx, mts, cts]
     }
-    note right of TypeScriptProvider
+    note right of TypeScriptHandler
+        **MIME:** application/typescript
         **ANTLR Grammar:** TypeScriptParser.g4
         **TokenMaker:** TypeScriptTokenMaker
-        **MIME:** application/typescript
+        **TreeNode:** TypeScriptFileTreeNodeFactoryProvider
+        --
+        **Processing:**
+        1. Parse with TypeScriptParser
+        2. Extract interfaces, types, classes
+        3. Handle generic types
+        4. Support JSX/TSX syntax
     end note
 
-    class JavaScriptProvider <<handler>> {
+    class JavaScriptHandler <<handler>> {
         languageId = "javascript"
-        syntaxStyle = "text/javascript"
         extensions = [js, jsx, mjs, cjs]
     }
-    note right of JavaScriptProvider
+    note right of JavaScriptHandler
+        **MIME:** application/javascript
         **ANTLR Grammar:** ECMAScript.g4
         **TokenMaker:** JavaScriptTokenMaker
-        **MIME:** application/javascript
+        **TreeNode:** JavascriptFileTreeNodeFactoryProvider
+        --
+        **Processing:**
+        1. Parse ES2024+ syntax
+        2. Handle module imports/exports
+        3. Support JSX syntax for React
     end note
 
-    class PythonProvider <<handler>> {
-        languageId = "python"
-        syntaxStyle = "text/python"
-        extensions = [py, pyw, pyi]
+    class HtmlHandler <<handler>> {
+        languageId = "html"
+        extensions = [html, htm, xhtml]
     }
-    note right of PythonProvider
-        **ANTLR Grammar:** Python3Parser.g4
-        **TokenMaker:** PythonTokenMaker
-        **MIME:** text/x-python
+    note right of HtmlHandler
+        **MIME:** text/html
+        **TokenMaker:** HtmlTokenMaker
+        **TreeNode:** HtmlFileTreeNodeFactoryProvider
+        **Page:** HtmlFilePage
+        --
+        **Processing:**
+        1. Parse HTML DOM structure
+        2. Highlight inline CSS/JS
+        3. Handle embedded templates
     end note
 
-    class CppProvider <<handler>> {
+    class CssHandler <<handler>> {
+        languageId = "css"
+        extensions = [css, scss, sass, less]
+    }
+    note right of CssHandler
+        **MIME:** text/css
+        **TokenMaker:** CssTokenMaker
+        **TreeNode:** CssFileTreeNodeFactoryProvider
+        --
+        **Processing:**
+        1. Parse CSS selectors/properties
+        2. Handle SCSS/SASS preprocessing
+        3. Support CSS variables
+    end note
+
+    class JspHandler <<handler>> {
+        extensions = [jsp]
+    }
+    note right of JspHandler
+        **MIME:** text/html
+        **TreeNode:** JspFileTreeNodeFactoryProvider
+        **Special:** Embedded Java scriptlets
+    end note
+}
+
+' ========================================
+' Systems Programming Languages
+' ========================================
+package "Systems Languages" #FFF9C4 {
+    class CppHandler <<handler>> {
         languageId = "cpp"
-        syntaxStyle = "text/cpp"
         extensions = [cpp, cxx, cc, c++, hpp, hxx, h]
     }
-    note right of CppProvider
+    note right of CppHandler
+        **MIME:** text/x-c++src, text/x-chdr
         **ANTLR Grammar:** CPP14Parser.g4
         **TokenMaker:** CppTokenMaker
-        **MIME:** text/x-c++src
+        --
+        **Processing:**
+        1. Parse C++14/17/20 syntax
+        2. Handle templates, namespaces
+        3. Extract class hierarchies
     end note
 
-    class CSharpProvider <<handler>> {
-        languageId = "csharp"
-        syntaxStyle = "text/csharp"
-        extensions = [cs, csx]
+    class CHandler <<handler>> {
+        languageId = "c"
+        extensions = [c]
     }
-    note right of CSharpProvider
-        **ANTLR Grammar:** CSharpParser.g4
-        **TokenMaker:** CSharpTokenMaker
-        **MIME:** text/x-csharp
+    note right of CHandler
+        **MIME:** text/x-csrc
+        **TokenMaker:** CTokenMaker
+        **Processing:** C11/C17 standard
     end note
 
-    class GoProvider <<handler>> {
+    class GoHandler <<handler>> {
         languageId = "go"
-        syntaxStyle = "text/go"
         extensions = [go]
     }
-    note right of GoProvider
+    note right of GoHandler
+        **MIME:** text/x-go
         **ANTLR Grammar:** GoParser.g4
         **TokenMaker:** GoTokenMaker
-        **MIME:** text/x-go
+        --
+        **Processing:**
+        1. Parse Go modules
+        2. Extract interfaces, structs
+        3. Handle goroutines, channels
     end note
 
-    class RustProvider <<handler>> {
+    class RustHandler <<handler>> {
         languageId = "rust"
-        syntaxStyle = "text/rust"
         extensions = [rs]
     }
-    note right of RustProvider
+    note right of RustHandler
+        **MIME:** text/x-rust
         **ANTLR Grammar:** RustParser.g4
         **TokenMaker:** RustTokenMaker
-        **MIME:** text/x-rust
+        --
+        **Processing:**
+        1. Parse Rust 2021 edition
+        2. Handle traits, impl blocks
+        3. Extract macro definitions
     end note
 
-    class SwiftProvider <<handler>> {
+    class CSharpHandler <<handler>> {
+        languageId = "csharp"
+        extensions = [cs, csx]
+    }
+    note right of CSharpHandler
+        **MIME:** text/x-csharp
+        **ANTLR Grammar:** CSharpParser.g4
+        **TokenMaker:** CSharpTokenMaker
+        --
+        **Processing:**
+        1. Parse C# 11/12 syntax
+        2. Handle LINQ, async/await
+        3. Extract namespaces, classes
+    end note
+
+    class SwiftHandler <<handler>> {
         languageId = "swift"
-        syntaxStyle = "text/swift"
         extensions = [swift]
     }
-    note right of SwiftProvider
+    note right of SwiftHandler
+        **MIME:** text/x-swift
         **ANTLR Grammar:** Swift5Parser.g4
         **TokenMaker:** SwiftTokenMaker
-        **MIME:** text/x-swift
+    end note
+}
+
+' ========================================
+' Scripting Languages
+' ========================================
+package "Scripting Languages" #E1BEE7 {
+    class PythonHandler <<handler>> {
+        languageId = "python"
+        extensions = [py, pyw, pyi]
+    }
+    note right of PythonHandler
+        **MIME:** text/x-python
+        **ANTLR Grammar:** Python3Parser.g4
+        **TokenMaker:** PythonTokenMaker
+        --
+        **Processing:**
+        1. Parse Python 3.x syntax
+        2. Handle type hints (pyi)
+        3. Extract classes, functions
+        4. Support decorators
+    end note
+
+    class RubyHandler <<handler>> {
+        languageId = "ruby"
+        extensions = [rb, rake, gemspec]
+    }
+    note right of RubyHandler
+        **MIME:** text/x-ruby
+        **TokenMaker:** RubyTokenMaker
+        **Features:** Blocks, modules, mixins
+    end note
+
+    class ShellHandler <<handler>> {
+        languageId = "shell"
+        extensions = [sh, bash, zsh, fish]
+    }
+    note right of ShellHandler
+        **MIME:** application/x-sh
+        **TokenMaker:** ShellTokenMaker
+        **Features:** Variables, functions, pipes
+    end note
+
+    class LuaHandler <<handler>> {
+        languageId = "lua"
+        extensions = [lua]
+    }
+    note right of LuaHandler
+        **MIME:** text/x-lua
+        **TokenMaker:** LuaTokenMaker
+    end note
+
+    class PerlHandler <<handler>> {
+        languageId = "perl"
+        extensions = [pl, pm]
+    }
+    note right of PerlHandler
+        **MIME:** text/x-perl
+        **TokenMaker:** PerlTokenMaker
+    end note
+
+    class PhpHandler <<handler>> {
+        languageId = "php"
+        extensions = [php, phtml]
+    }
+    note right of PhpHandler
+        **MIME:** application/x-php
+        **TokenMaker:** PhpTokenMaker
+        **Features:** Embedded HTML support
     end note
 }
 
@@ -163,89 +405,92 @@ package "Programming Languages" #E3F2FD {
 ' Data & Config Formats
 ' ========================================
 package "Data & Config Formats" #FFF3E0 {
-    class JsonProvider <<handler>> {
+    class JsonHandler <<handler>> {
         languageId = "json"
-        syntaxStyle = "text/json"
         extensions = [json, jsonc, json5]
     }
-    note right of JsonProvider
+    note right of JsonHandler
         **MIME:** application/json
-        **Handler:** JsonTokenMaker
+        **TokenMaker:** JsonTokenMaker
+        **TreeNode:** JsonFileTreeNodeFactoryProvider
+        **Page:** TextFileTreeNodeFactoryProvider.Page
+        --
+        **Processing:**
+        1. Parse JSON structure
+        2. Validate syntax
+        3. Handle JSONC comments
+        4. Format/prettify
     end note
 
-    class XmlProvider <<handler>> {
+    class XmlHandler <<handler>> {
         languageId = "xml"
-        syntaxStyle = "text/xml"
-        extensions = [xml, xsd, xsl, xslt, svg, xaml]
+        extensions = [xml, xsd, xsl, xslt, xaml, fxml]
     }
-    note right of XmlProvider
+    note right of XmlHandler
         **MIME:** application/xml, text/xml
-        **Handler:** XmlTokenMaker
+        **TokenMaker:** XmlTokenMaker
+        **TreeNode:** XmlFileTreeNodeFactoryProvider
+        **Page:** XmlFilePage
+        --
+        **Processing:**
+        1. Parse DOM/SAX
+        2. Validate against XSD
+        3. Handle namespaces
+        4. Support XSLT transformations
+        --
+        **Special handlers:**
+        - ManifestFileTreeNodeFactoryProvider (MANIFEST.MF)
+        - WebXmlFileTreeNodeFactoryProvider (web.xml)
+        - EjbJarXmlFileTreeNodeFactoryProvider (ejb-jar.xml)
     end note
 
-    class YamlProvider <<handler>> {
+    class YamlHandler <<handler>> {
         languageId = "yaml"
-        syntaxStyle = "text/yaml"
         extensions = [yaml, yml]
     }
-    note right of YamlProvider
+    note right of YamlHandler
         **MIME:** application/x-yaml
-        **Handler:** YamlTokenMaker
+        **TokenMaker:** YamlTokenMaker
+        --
+        **Processing:**
+        1. Parse YAML structure
+        2. Handle anchors/aliases
+        3. Multi-document support
     end note
 
-    class TomlProvider <<handler>> {
+    class TomlHandler <<handler>> {
         languageId = "toml"
-        syntaxStyle = "text/toml"
         extensions = [toml]
     }
-    note right of TomlProvider
+    note right of TomlHandler
         **MIME:** application/toml
-        **Handler:** TomlTokenMaker
+        **TokenMaker:** TomlTokenMaker
+        **Used for:** Cargo.toml, pyproject.toml
     end note
 
-    class PropertiesProvider <<handler>> {
+    class PropertiesHandler <<handler>> {
         languageId = "properties"
-        syntaxStyle = "text/properties"
         extensions = [properties, ini, cfg, conf]
     }
-    note right of PropertiesProvider
+    note right of PropertiesHandler
         **MIME:** text/x-java-properties
-        **Handler:** PropertiesTokenMaker
-    end note
-}
-
-' ========================================
-' Web Technologies
-' ========================================
-package "Web Technologies" #FCE4EC {
-    class HtmlProvider <<handler>> {
-        languageId = "html"
-        syntaxStyle = "text/html"
-        extensions = [html, htm, xhtml]
-    }
-    note right of HtmlProvider
-        **MIME:** text/html
-        **Handler:** HtmlTokenMaker
+        **TokenMaker:** PropertiesTokenMaker
+        **TreeNode:** PropertiesFileTreeNodeFactoryProvider
+        --
+        **Processing:**
+        1. Parse key=value pairs
+        2. Handle escape sequences
+        3. Support multi-line values
     end note
 
-    class CssProvider <<handler>> {
-        languageId = "css"
-        syntaxStyle = "text/css"
-        extensions = [css, scss, sass, less]
+    class SqlHandler <<handler>> {
+        languageId = "sql"
+        extensions = [sql, ddl, dml]
     }
-    note right of CssProvider
-        **MIME:** text/css
-        **Handler:** CssTokenMaker
-    end note
-
-    class MarkdownProvider <<handler>> {
-        languageId = "markdown"
-        syntaxStyle = "text/markdown"
-        extensions = [md, markdown, mdown]
-    }
-    note right of MarkdownProvider
-        **MIME:** text/markdown
-        **Handler:** MarkdownTokenMaker
+    note right of SqlHandler
+        **MIME:** application/sql
+        **TokenMaker:** SqlTokenMaker
+        **TreeNode:** SqlFileTreeNodeFactoryProvider
     end note
 }
 
@@ -253,89 +498,218 @@ package "Web Technologies" #FCE4EC {
 ' Binary & Archive Formats
 ' ========================================
 package "Binary & Archive Formats" #F3E5F5 {
-    class ClassFileProvider <<handler>> {
-        languageId = "class"
-        extensions = [class]
+    class JarHandler <<handler>> {
+        extensions = [jar]
     }
-    note right of ClassFileProvider
-        **MIME:** application/java-vm
-        **Handler:** ClassFileReader
-        Decompiles to Java source
-    end note
-
-    class JarProvider <<handler>> {
-        languageId = "jar"
-        extensions = [jar, war, ear, aar]
-    }
-    note right of JarProvider
+    note right of JarHandler
         **MIME:** application/java-archive
-        **Handler:** JarContainerFactory
-        ZIP-based archive
+        **Container:** JarContainerFactoryProvider
+        **Loader:** JarFileLoaderProvider (extends ZipFileLoaderProvider)
+        **TreeNode:** JarFileTreeNodeFactoryProvider
+        --
+        **Processing:**
+        1. Open as ZipFile
+        2. Parse MANIFEST.MF
+        3. Create virtual file tree
+        4. Lazy-load class files
+        5. Support nested JARs
+        --
+        **Accepts:** .jar!/ URIs or META-INF folder present
     end note
 
-    class ZipProvider <<handler>> {
-        languageId = "zip"
+    class WarHandler <<handler>> {
+        extensions = [war]
+    }
+    note right of WarHandler
+        **MIME:** application/java-archive
+        **Container:** WarContainerFactoryProvider
+        **Loader:** WarFileLoaderProvider
+        --
+        **Processing:**
+        1. Parse WEB-INF structure
+        2. Handle web.xml deployment descriptor
+        3. Load WEB-INF/lib/*.jar
+        4. Support classes directory
+        --
+        **Special TreeNodes:**
+        - WebXmlFileTreeNodeFactoryProvider
+        - WarPackageTreeNodeFactoryProvider
+    end note
+
+    class EarHandler <<handler>> {
+        extensions = [ear]
+    }
+    note right of EarHandler
+        **MIME:** application/java-archive
+        **Container:** EarContainerFactoryProvider
+        **Loader:** EarFileLoaderProvider
+        --
+        **Processing:**
+        1. Parse application.xml
+        2. Handle embedded WAR/JAR modules
+        3. Load ejb-jar.xml descriptors
+    end note
+
+    class ZipHandler <<handler>> {
         extensions = [zip, gz, tar, 7z]
     }
-    note right of ZipProvider
-        **MIME:** application/zip
-        **Handler:** ArchiveContainerFactory
+    note right of ZipHandler
+        **MIME:** application/zip, application/gzip
+        **Container:** GenericContainerFactoryProvider
+        **Loader:** ZipFileLoaderProvider
+        --
+        **Processing:**
+        1. Open archive with appropriate library
+        2. Create virtual file tree
+        3. Support nested archives
     end note
 
-    class ImageProvider <<handler>> {
-        languageId = "image"
-        extensions = [png, jpg, jpeg, gif, bmp, ico, webp]
+    class JmodHandler <<handler>> {
+        extensions = [jmod]
     }
-    note right of ImageProvider
-        **MIME:** image/*
-        **Handler:** ImageViewer
-        Rendered in viewer pane
+    note right of JmodHandler
+        **MIME:** application/x-java-module
+        **Container:** JavaModuleContainerFactoryProvider
+        **Loader:** JavaModuleFileLoaderProvider
+        --
+        **Processing:**
+        1. Parse module-info.class
+        2. Handle requires/exports
+        3. Support services declarations
     end note
 
-    class SvgProvider <<handler>> {
-        languageId = "svg"
-        extensions = [svg]
+    class AarHandler <<handler>> {
+        extensions = [aar]
     }
-    note right of SvgProvider
-        **MIME:** image/svg+xml
-        **Handler:** BatikSvgViewerPanel
-        Apache Batik rendering
+    note right of AarHandler
+        **MIME:** application/vnd.android.package-archive
+        **Loader:** AarFileLoaderProvider
+        **Processing:** Android library archive
     end note
 
-    class PdfProvider <<handler>> {
-        languageId = "pdf"
-        extensions = [pdf]
+    class KarHandler <<handler>> {
+        extensions = [kar]
     }
-    note right of PdfProvider
-        **MIME:** application/pdf
-        **Handler:** PDFViewer
+    note right of KarHandler
+        **MIME:** application/x-karaf-archive
+        **Container:** KarContainerFactoryProvider
+        **Loader:** KarFileLoaderProvider
+        **Processing:** Apache Karaf archive
     end note
 }
 
 ' ========================================
-' vCard/Calendar Formats
+' Image Formats
 ' ========================================
-package "vCard & Calendar (RFC)" #E8EAF6 {
-    class VCardProvider <<handler>> {
-        languageId = "vcard"
-        extensions = [vcf, vcard]
+package "Image Formats" #FFEBEE {
+    class RasterImageHandler <<handler>> {
+        extensions = [png, jpg, jpeg, gif, bmp, webp, ico]
     }
-    note right of VCardProvider
-        **MIME:** text/vcard
-        **RFC:** 6350 (vCard 4.0)
-        **Handler:** ez-vcard
-        **jCard:** RFC 7095 (JSON)
+    note right of RasterImageHandler
+        **MIME:** image/png, image/jpeg, image/gif, etc.
+        **TreeNode:** ImageFileTreeNodeFactoryProvider
+        **Selector:** *:file:*.gif, *:file:*.jpg, *:file:*.png
+        --
+        **Processing:**
+        1. Read with javax.imageio.ImageIO
+        2. Create BufferedImage
+        3. Display in JScrollPane with JLabel
+        4. Support zoom/pan controls
+        --
+        **Library:** Java AWT/ImageIO
     end note
 
-    class ICalendarProvider <<handler>> {
-        languageId = "icalendar"
+    class SvgHandler <<handler>> {
+        extensions = [svg]
+    }
+    note right of SvgHandler
+        **MIME:** image/svg+xml
+        **Handler:** BatikSvgViewerPanel (Kotlin)
+        **Library:** Apache Batik 1.17
+        --
+        **Processing:**
+        1. Parse with SAXSVGDocumentFactory
+        2. Render with JSVGCanvas
+        3. Support pan/zoom (mouse wheel, drag)
+        4. Enable dynamic SVG updates
+        --
+        **Transcoding (SvgTranscoder):**
+        - PNG: PNGTranscoder
+        - JPEG: JPEGTranscoder (quality param)
+        - TIFF: TIFFTranscoder
+        - PDF: PDFTranscoder (via FOP)
+        --
+        **REST API:**
+        POST /api/svg/convert
+        POST /api/svg/manipulate
+        POST /api/svg/merge
+        POST /api/svg/optimize
+    end note
+}
+
+' ========================================
+' vCard & Calendar (RFC Compliant)
+' ========================================
+package "vCard & Calendar (RFC)" #E8EAF6 {
+    class VCardHandler <<handler>> {
+        extensions = [vcf, vcard]
+    }
+    note right of VCardHandler
+        **MIME:** text/vcard
+        **RFC:** 6350 (vCard 4.0), 7095 (jCard JSON)
+        **Library:** ez-vcard 0.12.1
+        --
+        **Handler Classes:**
+        - VCardMapper (MapStruct)
+        - VCardOrgManager
+        - VCardDifferencer (Guava MapDifference)
+        - VCardSyncManager
+        --
+        **Mapped Properties (RFC 6350):**
+        Section 6.1: FN, N, NICKNAME, PHOTO, BDAY, ANNIVERSARY
+        Section 6.2: ADR, GEO
+        Section 6.3: TEL, EMAIL, IMPP, LANG
+        Section 6.4: TZ, GEO
+        Section 6.5: TITLE, ROLE, LOGO, ORG, MEMBER
+        Section 6.6: CATEGORIES, NOTE, PRODID, REV, SOUND, UID, URL
+        Section 6.7: KEY, FBURL, CALADRURI, CALURI
+        Section 6.8: XML extension
+        --
+        **Sync Targets:**
+        - Keycloak (user attributes)
+        - Openfire XMPP (vCard XEP-0054)
+        - Matrix (profile API)
+        - Bedework CardDAV
+    end note
+
+    class ICalendarHandler <<handler>> {
         extensions = [ics, ical, ifb]
     }
-    note right of ICalendarProvider
+    note right of ICalendarHandler
         **MIME:** text/calendar
-        **RFC:** 5545 (iCalendar)
-        **Handler:** ical4j
-        CalDAV compatible
+        **RFC:** 5545 (iCalendar 2.0)
+        **Library:** ical4j 3.2.14
+        --
+        **Handler:** ICalendarMapper
+        --
+        **Components (RFC 5545):**
+        - VCALENDAR (container)
+        - VEVENT (events)
+        - VTODO (tasks)
+        - VJOURNAL (journal entries)
+        - VFREEBUSY (free/busy)
+        - VTIMEZONE (timezone defs)
+        - VALARM (alarms)
+        --
+        **Properties:**
+        Descriptive: SUMMARY, DESCRIPTION, LOCATION,
+                     CATEGORIES, CLASS, STATUS, PRIORITY
+        DateTime: DTSTART, DTEND, DUE, COMPLETED,
+                  DURATION, TRANSP, FREEBUSY
+        Recurrence: RRULE, RDATE, EXDATE, RECURRENCE-ID
+        Relationship: ORGANIZER, ATTENDEE, CONTACT, UID
+        --
+        **CalDAV Integration:** Bedework server
     end note
 }
 
@@ -343,125 +717,307 @@ package "vCard & Calendar (RFC)" #E8EAF6 {
 ' Diagram Formats
 ' ========================================
 package "Diagram Formats" #EFEBE9 {
-    class PlantUmlProvider <<handler>> {
-        languageId = "plantuml"
+    class PlantUmlHandler <<handler>> {
         extensions = [puml, plantuml, pu, wsd]
     }
-    note right of PlantUmlProvider
+    note right of PlantUmlHandler
         **MIME:** text/x-plantuml
-        **Handler:** PlantUmlService
-        **Output:** SVG, PNG, PDF, ASCII
-        Batik SVG rendering
+        **Library:** PlantUML 1.2024.0
+        --
+        **Service:** PlantUmlService
+        **Converter:** AntlrToPumlConverter
+        **Registry:** AntlrToPumlConverterRegistry
+        --
+        **Source Code to PlantUML:**
+        1. Parse source with ANTLR grammar
+        2. Walk parse tree with PumlExtractionListener
+        3. Extract classifiers (class/interface/enum)
+        4. Extract relationships (inheritance, etc.)
+        5. Build PumlClassDiagram model
+        6. Generate PlantUML source
+        --
+        **Output Formats:**
+        - PNG: Raster image
+        - SVG: Vector (with Batik viewer)
+        - EPS: Encapsulated PostScript
+        - PDF: Portable Document
+        - ASCII: Text-based diagram
+        - ASCII_UNICODE: Enhanced text
+        --
+        **REST API:**
+        POST /api/puml/generate
+        POST /api/puml/render
+        GET /api/puml/formats
+        GET /api/puml/languages
     end note
 
-    class MermaidProvider <<handler>> {
-        languageId = "mermaid"
+    class MermaidHandler <<handler>> {
         extensions = [mmd, mermaid]
     }
-    note right of MermaidProvider
+    note right of MermaidHandler
         **MIME:** text/x-mermaid
-        **Handler:** MermaidRenderer
+        **Processing:** Client-side JS rendering
+        **Diagrams:** flowchart, sequence, class, etc.
     end note
 
-    class GraphvizProvider <<handler>> {
-        languageId = "graphviz"
+    class GraphvizHandler <<handler>> {
         extensions = [dot, gv]
     }
-    note right of GraphvizProvider
+    note right of GraphvizHandler
         **MIME:** text/vnd.graphviz
-        **Handler:** GraphvizRenderer
+        **Processing:** DOT language parsing
+        **Output:** SVG, PNG, PDF
     end note
 }
 
 ' ========================================
-' Build & Script Files
+' Build & DevOps
 ' ========================================
-package "Build & Script Files" #FBE9E7 {
-    class GradleProvider <<handler>> {
-        languageId = "gradle"
+package "Build & DevOps" #FBE9E7 {
+    class GradleHandler <<handler>> {
         extensions = [gradle, gradle.kts]
     }
-    note right of GradleProvider
+    note right of GradleHandler
         **MIME:** text/x-gradle
-        **Handler:** GroovyTokenMaker
-        or KotlinTokenMaker
+        **TokenMaker:**
+        - .gradle: GroovyTokenMaker
+        - .gradle.kts: KotlinTokenMaker
+        --
+        **Processing:**
+        1. Parse build DSL
+        2. Extract dependencies
+        3. Highlight task definitions
     end note
 
-    class MavenProvider <<handler>> {
-        languageId = "maven"
+    class MavenHandler <<handler>> {
         extensions = [pom]
     }
-    note right of MavenProvider
+    note right of MavenHandler
         **MIME:** application/xml
-        **Handler:** XmlTokenMaker
-        Maven POM files
+        **TreeNode:** XmlFileTreeNodeFactoryProvider
+        **Schema:** Maven POM 4.0.0 XSD
+        --
+        **Processing:**
+        1. Parse as XML
+        2. Extract dependencies
+        3. Resolve parent POMs
     end note
 
-    class ShellProvider <<handler>> {
-        languageId = "shell"
-        extensions = [sh, bash, zsh, fish]
-    }
-    note right of ShellProvider
-        **MIME:** application/x-sh
-        **Handler:** ShellTokenMaker
-    end note
-
-    class DockerfileProvider <<handler>> {
-        languageId = "dockerfile"
+    class DockerHandler <<handler>> {
         extensions = [dockerfile]
     }
-    note right of DockerfileProvider
+    note right of DockerHandler
         **MIME:** text/x-dockerfile
-        **Handler:** DockerfileTokenMaker
+        **TokenMaker:** DockerfileTokenMaker
+        --
+        **Processing:**
+        1. Parse Dockerfile instructions
+        2. Highlight FROM, RUN, COPY, etc.
+        3. Handle multi-stage builds
     end note
 
-    class MakefileProvider <<handler>> {
-        languageId = "makefile"
+    class MakefileHandler <<handler>> {
         extensions = [makefile, mk, mak]
     }
-    note right of MakefileProvider
+    note right of MakefileHandler
         **MIME:** text/x-makefile
-        **Handler:** MakefileTokenMaker
+        **TokenMaker:** MakefileTokenMaker
+        **Processing:** Target/dependency parsing
+    end note
+
+    class SpiHandler <<handler>> {
+        extensions = [services/*]
+    }
+    note right of SpiHandler
+        **Location:** META-INF/services/*
+        **TreeNode:** SpiFileTreeNodeFactoryProvider
+        --
+        **Processing:**
+        1. Parse service provider files
+        2. List implementation classes
+        3. Hyperlink to class files
+    end note
+}
+
+' ========================================
+' Documentation
+' ========================================
+package "Documentation" #E0F2F1 {
+    class MarkdownHandler <<handler>> {
+        extensions = [md, markdown, mdown]
+    }
+    note right of MarkdownHandler
+        **MIME:** text/markdown
+        **TokenMaker:** MarkdownTokenMaker
+        --
+        **Processing:**
+        1. Parse CommonMark syntax
+        2. Render to HTML preview
+        3. Support GFM extensions
+        4. Handle code fences
+    end note
+
+    class LatexHandler <<handler>> {
+        extensions = [tex, latex]
+    }
+    note right of LatexHandler
+        **MIME:** application/x-latex
+        **TokenMaker:** LatexTokenMaker
+        **Processing:** LaTeX/TeX syntax
+    end note
+
+    class ManifestHandler <<handler>> {
+        extensions = [MANIFEST.MF]
+    }
+    note right of ManifestHandler
+        **Location:** META-INF/MANIFEST.MF
+        **TreeNode:** ManifestFileTreeNodeFactoryProvider
+        --
+        **Processing:**
+        1. Parse key: value pairs
+        2. Handle line continuations
+        3. Extract Main-Class, Class-Path
+    end note
+
+    class DtdHandler <<handler>> {
+        extensions = [dtd]
+    }
+    note right of DtdHandler
+        **MIME:** application/xml-dtd
+        **TreeNode:** DtdFileTreeNodeFactoryProvider
+        **Processing:** DTD element/attribute defs
+    end note
+}
+
+' ========================================
+' API & Schema
+' ========================================
+package "API & Schema" #B2EBF2 {
+    class GraphQLHandler <<handler>> {
+        extensions = [graphql, gql]
+    }
+    note right of GraphQLHandler
+        **MIME:** application/graphql
+        **TokenMaker:** GraphQLTokenMaker
+        **Processing:** Types, queries, mutations
+    end note
+
+    class ProtobufHandler <<handler>> {
+        extensions = [proto]
+    }
+    note right of ProtobufHandler
+        **MIME:** text/x-protobuf
+        **TokenMaker:** ProtobufTokenMaker
+        **Processing:** Message/service definitions
+    end note
+
+    class OpenAPIHandler <<handler>> {
+        extensions = [openapi.yaml, swagger.json]
+    }
+    note right of OpenAPIHandler
+        **MIME:** application/vnd.oai.openapi
+        **Processing:** YAML/JSON parser
+        **Features:** Path, schema definitions
+    end note
+}
+
+' ========================================
+' Server-side Services (Koin IoC)
+' ========================================
+package "Server Services (Koin IoC)" #DCEDC8 {
+    class KoinModules <<module>> {
+        configModule
+        coreServicesModule
+        externalServicesModule
+        syncServicesModule
+        diagramServicesModule
+        mimeTypeHandlersModule
+    }
+    note right of KoinModules
+        **Dependency Injection Framework:** Koin 3.5.3
+        **Integration:** koin-ktor
+        --
+        **Modules:**
+        - configModule: ServerConfig from environment
+        - coreServicesModule: VCardOrgManager
+        - externalServicesModule: Openfire, Matrix, Bedework
+        - syncServicesModule: VCardSyncManager
+        - diagramServicesModule: PlantUML, SVG services
+        - mimeTypeHandlersModule: MimeTypeRegistry
+    end note
+
+    class MimeTypeRegistry <<service>> {
+        +register(ext, mime, desc, category)
+        +getMimeType(ext): String?
+        +getInfo(ext): MimeTypeInfo?
+        +getExtensions(mime): Set<String>
+        +getByCategory(cat): List<MimeTypeInfo>
+        +getAllExtensions(): Set<String>
+        +getAllMimeTypes(): Set<String>
+    }
+    note right of MimeTypeRegistry
+        **REST API:**
+        GET /api/mime - List all (filterable)
+        GET /api/mime/{extension} - Lookup
+        --
+        **Categories:**
+        PROGRAMMING, DATA, WEB, BINARY,
+        ARCHIVE, IMAGE, DOCUMENT,
+        CONTACT, CALENDAR, DIAGRAM, BUILD
+        --
+        **Registered:** 60+ extensions, 100+ MIME types
     end note
 }
 
 ' ========================================
 ' Relationships
 ' ========================================
-LanguageSyntaxProvider <|.. JavaProvider
-LanguageSyntaxProvider <|.. KotlinProvider
-LanguageSyntaxProvider <|.. TypeScriptProvider
-LanguageSyntaxProvider <|.. JavaScriptProvider
-LanguageSyntaxProvider <|.. PythonProvider
-LanguageSyntaxProvider <|.. CppProvider
-LanguageSyntaxProvider <|.. CSharpProvider
-LanguageSyntaxProvider <|.. GoProvider
-LanguageSyntaxProvider <|.. RustProvider
-LanguageSyntaxProvider <|.. SwiftProvider
-LanguageSyntaxProvider <|.. JsonProvider
-LanguageSyntaxProvider <|.. XmlProvider
-LanguageSyntaxProvider <|.. YamlProvider
-LanguageSyntaxProvider <|.. TomlProvider
-LanguageSyntaxProvider <|.. PropertiesProvider
-LanguageSyntaxProvider <|.. HtmlProvider
-LanguageSyntaxProvider <|.. CssProvider
-LanguageSyntaxProvider <|.. MarkdownProvider
+LanguageSyntaxProvider <|.. JavaHandler
+LanguageSyntaxProvider <|.. KotlinHandler
+LanguageSyntaxProvider <|.. TypeScriptHandler
+LanguageSyntaxProvider <|.. JavaScriptHandler
+LanguageSyntaxProvider <|.. PythonHandler
+LanguageSyntaxProvider <|.. CppHandler
+LanguageSyntaxProvider <|.. GoHandler
+LanguageSyntaxProvider <|.. RustHandler
 
-LanguageSyntaxProviderRegistry --> LanguageSyntaxProvider : manages
+TreeNodeFactory <|.. ClassHandler
+TreeNodeFactory <|.. JarHandler
+TreeNodeFactory <|.. RasterImageHandler
+
+ContainerFactory <|.. JarHandler
+ContainerFactory <|.. WarHandler
+ContainerFactory <|.. EarHandler
+
+FileLoader <|.. JarHandler
+FileLoader <|.. ClassHandler
+FileLoader <|.. ZipHandler
 
 ' ========================================
 ' Legend
 ' ========================================
 legend right
-    |= Color |= Category |
-    | <#E8F5E9> | Core Registry |
-    | <#E3F2FD> | Programming Languages |
-    | <#FFF3E0> | Data & Config Formats |
-    | <#FCE4EC> | Web Technologies |
-    | <#F3E5F5> | Binary & Archive |
-    | <#E8EAF6> | vCard & Calendar |
-    | <#EFEBE9> | Diagram Formats |
-    | <#FBE9E7> | Build & Scripts |
+    |= Color |= Category |= Handler Count |
+    | <#E8F5E9> | Core SPI Framework | 4 interfaces |
+    | <#E3F2FD> | Java/JVM Languages | 5 handlers |
+    | <#FCE4EC> | Web Languages | 5 handlers |
+    | <#FFF9C4> | Systems Languages | 6 handlers |
+    | <#E1BEE7> | Scripting Languages | 6 handlers |
+    | <#FFF3E0> | Data & Config | 6 handlers |
+    | <#F3E5F5> | Binary & Archive | 7 handlers |
+    | <#FFEBEE> | Image Formats | 2 handlers |
+    | <#E8EAF6> | vCard & Calendar | 2 handlers |
+    | <#EFEBE9> | Diagram Formats | 3 handlers |
+    | <#FBE9E7> | Build & DevOps | 5 handlers |
+    | <#E0F2F1> | Documentation | 4 handlers |
+    | <#B2EBF2> | API & Schema | 3 handlers |
+    | <#DCEDC8> | Server Services | Koin IoC |
+
+    **Total:** 200+ file extensions
+    **SPI Providers:** 90+ registered
+    **MIME Types:** 100+ supported
 endlegend
+
+footer Generated by JD-GUI MIME Type Analysis | Architecture v2026.2.2
 
 @enduml
