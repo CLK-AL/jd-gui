@@ -100,6 +100,22 @@ dependencies {
     testImplementation("io.insert-koin:koin-test:3.5.3")
     testImplementation("io.insert-koin:koin-test-junit5:3.5.3")
 
+    // Flexmark for Markdown parsing (CommonMark, GFM, extensions)
+    implementation("com.vladsch.flexmark:flexmark-all:0.64.8")
+
+    // docx4j for Office document processing (DOCX, XLSX, PPTX)
+    implementation("org.docx4j:docx4j-JAXB-ReferenceImpl:11.4.9")
+    implementation("org.docx4j:docx4j-export-fo:11.4.9")
+
+    // Apache PDFBox for PDF processing
+    implementation("org.apache.pdfbox:pdfbox:3.0.1")
+    implementation("org.apache.pdfbox:fontbox:3.0.1")
+    implementation("org.apache.pdfbox:preflight:3.0.1")
+
+    // Apache Tika for content detection and extraction
+    implementation("org.apache.tika:tika-core:2.9.1")
+    implementation("org.apache.tika:tika-parsers-standard-package:2.9.1")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 

@@ -176,6 +176,19 @@ val fileExtensionHandlersModule = module {
     single { SvgHandler() }
     single { IcoHandler() }
 
+    // Specialized parser handlers (higher priority)
+    single { FlexmarkMarkdownHandler() }  // Enhanced Markdown with GFM support
+    single { PdfBoxHandler() }            // PDF text extraction
+    single { DocxHandler() }              // Word document processing
+    single { XlsxHandler() }              // Excel spreadsheet processing
+    single { PptxHandler() }              // PowerPoint presentation processing
+    single { FontHandler() }              // Font file processing
+    single { TikaHandler() }              // Universal content detection (fallback)
+
+    // XHTML Converter Service - Base backend handler (Tika-based)
+    single { XhtmlConverterService() }    // Common XHTML output for all converters
+    single { XhtmlHandler(get()) }        // Universal XHTML handler
+
     // Handler registry (depends on all handlers)
     single { HandlerRegistry() }
 }
@@ -275,8 +288,25 @@ class MimeTypeRegistry {
 
         // Documents
         register("pdf", "application/pdf", "PDF document", MimeCategory.DOCUMENT)
-        register("doc", "application/msword", "Word document", MimeCategory.DOCUMENT)
+        register("doc", "application/msword", "Word document (legacy)", MimeCategory.DOCUMENT)
         register("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Word document", MimeCategory.DOCUMENT)
+        register("xls", "application/vnd.ms-excel", "Excel spreadsheet (legacy)", MimeCategory.DOCUMENT)
+        register("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Excel spreadsheet", MimeCategory.DOCUMENT)
+        register("ppt", "application/vnd.ms-powerpoint", "PowerPoint presentation (legacy)", MimeCategory.DOCUMENT)
+        register("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "PowerPoint presentation", MimeCategory.DOCUMENT)
+        register("odt", "application/vnd.oasis.opendocument.text", "OpenDocument text", MimeCategory.DOCUMENT)
+        register("ods", "application/vnd.oasis.opendocument.spreadsheet", "OpenDocument spreadsheet", MimeCategory.DOCUMENT)
+        register("odp", "application/vnd.oasis.opendocument.presentation", "OpenDocument presentation", MimeCategory.DOCUMENT)
+        register("rtf", "application/rtf", "Rich Text Format", MimeCategory.DOCUMENT)
+        register("txt", "text/plain", "Plain text file", MimeCategory.DOCUMENT)
+        register("epub", "application/epub+zip", "EPUB ebook", MimeCategory.DOCUMENT)
+
+        // Fonts
+        register("ttf", "font/ttf", "TrueType font", MimeCategory.BINARY)
+        register("otf", "font/otf", "OpenType font", MimeCategory.BINARY)
+        register("woff", "font/woff", "Web Open Font Format", MimeCategory.BINARY)
+        register("woff2", "font/woff2", "Web Open Font Format 2", MimeCategory.BINARY)
+        register("eot", "application/vnd.ms-fontobject", "Embedded OpenType font", MimeCategory.BINARY)
 
         // vCard/Calendar
         register("vcf", "text/vcard", "vCard contact", MimeCategory.CONTACT)

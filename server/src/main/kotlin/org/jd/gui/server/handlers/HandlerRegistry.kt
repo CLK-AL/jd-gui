@@ -89,6 +89,18 @@ class HandlerRegistry : KoinComponent {
     private val svgHandler: SvgHandler by inject()
     private val icoHandler: IcoHandler by inject()
 
+    // Specialized parser handlers (higher priority)
+    private val flexmarkMarkdownHandler: FlexmarkMarkdownHandler by inject()
+    private val pdfBoxHandler: PdfBoxHandler by inject()
+    private val docxHandler: DocxHandler by inject()
+    private val xlsxHandler: XlsxHandler by inject()
+    private val pptxHandler: PptxHandler by inject()
+    private val fontHandler: FontHandler by inject()
+    private val tikaHandler: TikaHandler by inject()
+
+    // XHTML Converter - Base backend handler with Tika
+    private val xhtmlHandler: XhtmlHandler by inject()
+
     init {
         // Register core language handlers
         registerHandler(javaHandler)
@@ -155,6 +167,18 @@ class HandlerRegistry : KoinComponent {
         registerHandler(bmpHandler)
         registerHandler(svgHandler)
         registerHandler(icoHandler)
+
+        // Register specialized parser handlers (higher priority)
+        registerHandler(flexmarkMarkdownHandler)  // Enhanced Markdown
+        registerHandler(pdfBoxHandler)            // PDF processing
+        registerHandler(docxHandler)              // Word documents
+        registerHandler(xlsxHandler)              // Excel spreadsheets
+        registerHandler(pptxHandler)              // PowerPoint presentations
+        registerHandler(fontHandler)              // Font files
+        registerHandler(tikaHandler)              // Universal fallback
+
+        // Register XHTML base handler (Tika-based, common output format)
+        registerHandler(xhtmlHandler)             // Universal XHTML converter
 
         logger.info { "HandlerRegistry initialized with ${handlers.size} handlers" }
     }
