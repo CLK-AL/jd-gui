@@ -13,6 +13,7 @@ import org.jd.gui.server.svg.SvgTranscoder
 import org.jd.gui.server.sync.VCardSyncManager
 import org.jd.gui.server.xmpp.OpenfireOrgManager
 import org.jd.gui.server.handlers.*
+import org.jd.gui.server.pipeline.pipelineModule
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
@@ -208,7 +209,8 @@ fun allServerModules(environment: ApplicationEnvironment): List<Module> = listOf
     syncServicesModule,
     diagramServicesModule,
     mimeTypeHandlersModule,
-    fileExtensionHandlersModule
+    fileExtensionHandlersModule,
+    pipelineModule  // Staged LOD pipeline (Camel routes, SSE/WebSocket)
 )
 
 /**

@@ -122,6 +122,15 @@ dependencies {
     // FFmpeg wrapper for audio/video processing
     implementation("ws.schild:jave-all-deps:3.5.0")
 
+    // Apache Camel for routing and integration
+    implementation("org.apache.camel:camel-core:4.3.0")
+    implementation("org.apache.camel:camel-kotlin:4.3.0")
+    implementation("org.apache.camel:camel-direct:4.3.0")
+    implementation("org.apache.camel:camel-stream:4.3.0")
+    implementation("org.apache.camel:camel-file:4.3.0")
+    implementation("org.apache.camel:camel-http:4.3.0")
+    implementation("org.apache.camel:camel-websocket:4.3.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
