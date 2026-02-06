@@ -619,6 +619,35 @@ package "Image Formats" #FFEBEE {
         **Library:** Java AWT/ImageIO
     end note
 
+    class ImageMetadataHandler <<handler>> {
+        extensions = [jpg, jpeg, png, tiff, heic, raw]
+        priority = 25
+    }
+    note right of ImageMetadataHandler
+        **Library:** metadata-extractor 2.19.0
+        --
+        **EXIF Extraction:**
+        - Camera make/model
+        - Date taken/digitized
+        - Exposure, f-number, ISO
+        - Focal length, flash, white balance
+        --
+        **GPS Data:**
+        - Latitude/Longitude
+        - Altitude, timestamp
+        --
+        **IPTC Metadata:**
+        - Headline, caption
+        - Copyright, byline
+        - Keywords, city, country
+        --
+        **XMP Support:**
+        - Creator, description
+        - Rights, subjects
+        --
+        **Output:** Bootstrap XHTML with preview
+    end note
+
     class SvgHandler <<handler>> {
         extensions = [svg]
     }
@@ -644,6 +673,79 @@ package "Image Formats" #FFEBEE {
         POST /api/svg/manipulate
         POST /api/svg/merge
         POST /api/svg/optimize
+    end note
+}
+
+' ========================================
+' Audio/Video Formats
+' ========================================
+package "Audio/Video Formats" #F3E5AB {
+    class FFmpegMediaHandler <<handler>> {
+        priority = 20
+    }
+    note right of FFmpegMediaHandler
+        **Library:** JAVE2 (FFmpeg wrapper) 3.5.0
+        --
+        **Video Extensions:**
+        mp4, mkv, avi, mov, wmv, flv,
+        webm, m4v, mpeg, mpg, 3gp
+        --
+        **Audio Extensions:**
+        mp3, wav, flac, aac, ogg,
+        wma, m4a, opus, aiff
+        --
+        **MediaInfo Data Class:**
+        - duration (milliseconds)
+        - format, fileSize, bitRate
+        --
+        **VideoStreamInfo:**
+        - codec, width, height
+        - frameRate, bitRate
+        --
+        **AudioStreamInfo:**
+        - codec, channels
+        - sampleRate, bitRate
+        --
+        **Output:** XHTML with stream tables
+    end note
+}
+
+' ========================================
+' Font Formats
+' ========================================
+package "Font Formats" #D7CCC8 {
+    class FontBoxEnhancedHandler <<handler>> {
+        extensions = [ttf, otf, woff, woff2, eot]
+        priority = 25
+    }
+    note right of FontBoxEnhancedHandler
+        **Library:** Apache FontBox 3.0.1
+        --
+        **FontInfo Data Class:**
+        - fontFamily, fontSubfamily
+        - fullName, postScriptName
+        - version, copyright, trademark
+        - manufacturer, designer
+        - description, vendorUrl
+        - license, licenseUrl
+        --
+        **Technical Properties:**
+        - format (TTF/OTF/WOFF/WOFF2)
+        - unitsPerEm, numGlyphs
+        - isBold, isItalic, isMonospace
+        --
+        **Unicode Range Detection:**
+        - supportsLatin
+        - supportsCyrillic
+        - supportsGreek
+        - supportsCJK
+        - supportsArabic
+        --
+        **Bootstrap XHTML Output:**
+        - 16-column character grid
+        - Sample text at 12-72px
+        - Metadata cards with tables
+        - @font-face embedded preview
     end note
 }
 
@@ -922,6 +1024,147 @@ package "API & Schema" #B2EBF2 {
 }
 
 ' ========================================
+' Specialized Parsers (XHTML Output)
+' ========================================
+package "Specialized Parsers (XHTML)" #C8E6C9 {
+    class XhtmlConverterService <<service>> {
+        +convertToXhtml(content, filename): XhtmlResult
+        +detectMimeType(content, filename): String
+    }
+    note right of XhtmlConverterService
+        **Architecture:**
+        - Apache Tika as base/fallback handler
+        - Specialized parsers override for better output
+        - XHTML as common format for Kotlin & JS
+        --
+        **Parser Selection:**
+        1. Check MIME type / extension
+        2. Route to specialized parser
+        3. Fall back to Tika if no match
+        4. Wrap output in valid XHTML
+        --
+        **Output:** Valid XHTML 1.0 Strict
+    end note
+
+    class FlexmarkMarkdownHandler <<handler>> {
+        extensions = [md, markdown, mdown]
+        priority = 20
+    }
+    note right of FlexmarkMarkdownHandler
+        **Library:** Flexmark 0.64.8
+        --
+        **Extensions Enabled:**
+        - TablesExtension (GFM tables)
+        - StrikethroughExtension
+        - TaskListExtension (checkboxes)
+        - TocExtension (table of contents)
+        --
+        **MarkdownStructure extraction:**
+        - Headings (level, text, line)
+        - Links (text, url, title)
+        - Images (alt, url, title)
+        - CodeBlocks (language, content)
+        - Tables count, TaskItems count
+        --
+        **Output:** XHTML with semantic HTML5 tags
+    end note
+
+    class PdfBoxHandler <<handler>> {
+        extensions = [pdf]
+        priority = 20
+    }
+    note right of PdfBoxHandler
+        **Library:** Apache PDFBox 3.0.1
+        --
+        **PdfContent extraction:**
+        - Text via PDFTextStripper
+        - Page-by-page or range
+        - Metadata (title, author, etc.)
+        --
+        **Document Info:**
+        - pageCount, pdfVersion
+        - title, author, subject
+        - keywords, creator, producer
+        - creationDate, modificationDate
+        - encrypted flag
+        --
+        **Output:** XHTML with paragraphs
+    end note
+
+    class DocxHandler <<handler>> {
+        extensions = [docx]
+        priority = 20
+    }
+    note right of DocxHandler
+        **Library:** docx4j 11.4.9
+        --
+        **Better than Tika for:**
+        - CSS styling preservation
+        - Table formatting
+        - List structures
+        --
+        **Docx4J.toHTML():**
+        - Full HTML export
+        - Style preservation
+        - Image embedding
+        --
+        **Metadata:** title, creator, description
+        **Output:** XHTML with CSS classes
+    end note
+
+    class XlsxHandler <<handler>> {
+        extensions = [xlsx]
+        priority = 20
+    }
+    note right of XlsxHandler
+        **Library:** docx4j SpreadsheetML
+        --
+        **XlsxContent:**
+        - Sheet names and count
+        - Cell data extraction
+        - Formula preservation
+        --
+        **Output:** XHTML tables per sheet
+    end note
+
+    class PptxHandler <<handler>> {
+        extensions = [pptx]
+        priority = 20
+    }
+    note right of PptxHandler
+        **Library:** docx4j PresentationML
+        --
+        **PptxContent:**
+        - Slide count
+        - Text extraction
+        - Shape content
+        --
+        **Output:** XHTML with slide divs
+    end note
+
+    class TikaHandler <<handler>> {
+        extensions = [*] (fallback)
+        priority = 1
+    }
+    note right of TikaHandler
+        **Library:** Apache Tika 2.9.1
+        --
+        **Universal Detection:**
+        - MIME type from content
+        - MIME type from filename
+        - Metadata extraction
+        --
+        **TikaContent:**
+        - Extracted text
+        - Detected MIME type
+        - Full metadata map
+        --
+        **Parser:** AutoDetectParser
+        **Output:** ToXMLContentHandler XHTML
+    end note
+}
+
+' ========================================
 ' Server-side Services (Koin IoC)
 ' ========================================
 package "Server Services (Koin IoC)" #DCEDC8 {
@@ -960,12 +1203,42 @@ package "Server Services (Koin IoC)" #DCEDC8 {
         GET /api/mime - List all (filterable)
         GET /api/mime/{extension} - Lookup
         --
-        **Categories:**
+        **Categories (13):**
         PROGRAMMING, DATA, WEB, BINARY,
         ARCHIVE, IMAGE, DOCUMENT,
-        CONTACT, CALENDAR, DIAGRAM, BUILD
+        CONTACT, CALENDAR, DIAGRAM, BUILD,
+        **AUDIO**, **VIDEO**
         --
-        **Registered:** 60+ extensions, 100+ MIME types
+        **Registered:** 80+ extensions, 120+ MIME types
+    end note
+
+    class HandlerRegistry <<service>> {
+        +registerHandler(handler)
+        +getHandler(id): FileExtensionHandler?
+        +getHandlerForExtension(ext): FileExtensionHandler?
+        +getAllHandlersForExtension(ext): List
+        +getHandlersByCategory(cat): List
+        +processFile(content): ProcessingResult
+    }
+    note right of HandlerRegistry
+        **Handler Priority System:**
+        Higher priority handlers selected first
+        for overlapping extensions
+        --
+        **Registered Handlers (56):**
+        - 32 source code handlers
+        - 9 data format handlers
+        - 7 image handlers
+        - 7 specialized parser handlers
+        - 1 universal XHTML handler
+        --
+        **REST API:**
+        GET /api/handlers
+        GET /api/handlers/{id}
+        GET /api/handlers/extension/{ext}
+        POST /api/handlers/process
+        POST /api/handlers/validate
+        POST /api/handlers/metadata
     end note
 }
 
@@ -1005,19 +1278,32 @@ legend right
     | <#E1BEE7> | Scripting Languages | 6 handlers |
     | <#FFF3E0> | Data & Config | 6 handlers |
     | <#F3E5F5> | Binary & Archive | 7 handlers |
-    | <#FFEBEE> | Image Formats | 2 handlers |
+    | <#FFEBEE> | Image Formats | 3 handlers |
+    | <#F3E5AB> | Audio/Video | 1 handler (FFmpeg) |
+    | <#D7CCC8> | Font Formats | 1 handler (FontBox) |
     | <#E8EAF6> | vCard & Calendar | 2 handlers |
     | <#EFEBE9> | Diagram Formats | 3 handlers |
     | <#FBE9E7> | Build & DevOps | 5 handlers |
     | <#E0F2F1> | Documentation | 4 handlers |
     | <#B2EBF2> | API & Schema | 3 handlers |
+    | <#C8E6C9> | Specialized Parsers | 7 XHTML handlers |
     | <#DCEDC8> | Server Services | Koin IoC |
 
-    **Total:** 200+ file extensions
+    **Total:** 220+ file extensions
     **SPI Providers:** 90+ registered
-    **MIME Types:** 100+ supported
+    **MIME Types:** 120+ supported
+    **MIME Categories:** 13 (incl. AUDIO, VIDEO)
+
+    **Specialized Parser Libraries:**
+    - Flexmark 0.64.8 (Markdown)
+    - docx4j 11.4.9 (Office docs)
+    - PDFBox 3.0.1 (PDF)
+    - FontBox 3.0.1 (Fonts)
+    - Tika 2.9.1 (Universal)
+    - JAVE2 3.5.0 (FFmpeg)
+    - metadata-extractor 2.19.0 (EXIF)
 endlegend
 
-footer Generated by JD-GUI MIME Type Analysis | Architecture v2026.2.2
+footer Generated by JD-GUI MIME Type Analysis | Architecture v2026.2.6
 
 @enduml
