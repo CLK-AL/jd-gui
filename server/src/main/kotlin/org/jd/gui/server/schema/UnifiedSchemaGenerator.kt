@@ -13,8 +13,10 @@ private val logger = KotlinLogging.logger {}
 /**
  * Schema version derived from file creation time or explicit version.
  *
- * Formats:
- * - semantic: "1.0.0" or "2025.02.06"
+ * Primary format: yyyy.mm.dd.hh.mm.ss.nnnnnnnnn (file time with nanoseconds)
+ *
+ * Additional formats:
+ * - calver: "2025.02.06"
  * - timestamp: "20250206T143022Z"
  * - epoch: 1738855822
  * - hash: "a1b2c3d4" (content hash)
@@ -26,15 +28,37 @@ data class SchemaVersion(
 ) {
     enum class VersionSource { FILE_CREATED, FILE_MODIFIED, EXPLICIT, CONTENT_HASH, GENERATED }
 
-    val semantic: String get() = formatSemantic()
+    /** Full precision: yyyy.mm.dd.hh.mm.ss.nnnnnnnnn */
+    val full: String get() = formatFull()
+
+    /** CalVer format: YYYY.MM.DD */
     val calver: String get() = formatCalver()
+
+    /** ISO timestamp: 20250206T143022Z */
     val timestampStr: String get() = formatTimestamp()
+
+    /** Unix epoch seconds */
     val epoch: Long get() = timestamp.epochSecond
 
-    private fun formatSemantic(): String {
-        // Convert timestamp to semantic-like version: major.minor.patch
+    /** Epoch with nanos: seconds.nanos */
+    val epochNano: String get() = "${timestamp.epochSecond}.${timestamp.nano}"
+
+    /** Short version: yyyy.mm.dd */
+    val short: String get() = formatShort()
+
+    private fun formatFull(): String {
+        // Full precision: yyyy.mm.dd.hh.mm.ss.nnnnnnnnn
         val dt = timestamp.atZone(ZoneOffset.UTC)
-        return "${dt.year - 2020}.${dt.monthValue}.${dt.dayOfMonth}"
+        return "%04d.%02d.%02d.%02d.%02d.%02d.%09d".format(
+            dt.year, dt.monthValue, dt.dayOfMonth,
+            dt.hour, dt.minute, dt.second,
+            dt.nano
+        )
+    }
+
+    private fun formatShort(): String {
+        val dt = timestamp.atZone(ZoneOffset.UTC)
+        return "%04d.%02d.%02d".format(dt.year, dt.monthValue, dt.dayOfMonth)
     }
 
     private fun formatCalver(): String {
@@ -52,6 +76,7 @@ data class SchemaVersion(
     companion object {
         /**
          * Create version from file creation time.
+         * Version format: yyyy.mm.dd.hh.mm.ss.nnnnnnnnn
          */
         fun fromFileCreated(path: Path): SchemaVersion {
             val attrs = Files.readAttributes(path, BasicFileAttributes::class.java)
@@ -65,6 +90,7 @@ data class SchemaVersion(
 
         /**
          * Create version from file modification time.
+         * Version format: yyyy.mm.dd.hh.mm.ss.nnnnnnnnn
          */
         fun fromFileModified(path: Path): SchemaVersion {
             val modTime = Files.getLastModifiedTime(path).toInstant()
@@ -100,6 +126,7 @@ data class SchemaVersion(
 
         /**
          * Create version from current timestamp.
+         * Version format: yyyy.mm.dd.hh.mm.ss.nnnnnnnnn
          */
         fun now(): SchemaVersion {
             val now = Instant.now()
@@ -110,9 +137,47 @@ data class SchemaVersion(
             )
         }
 
+        /**
+         * Format instant as version: yyyy.mm.dd.hh.mm.ss.nnnnnnnnn
+         */
         private fun formatVersion(instant: Instant): String {
             val dt = instant.atZone(ZoneOffset.UTC)
-            return "${dt.year}.${dt.monthValue}.${dt.dayOfMonth}"
+            return "%04d.%02d.%02d.%02d.%02d.%02d.%09d".format(
+                dt.year, dt.monthValue, dt.dayOfMonth,
+                dt.hour, dt.minute, dt.second,
+                dt.nano
+            )
+        }
+
+        /**
+         * Parse version string back to Instant.
+         * Supports: yyyy.mm.dd.hh.mm.ss.nnnnnnnnn or yyyy.mm.dd
+         */
+        fun parse(version: String): SchemaVersion? {
+            return try {
+                val parts = version.split(".")
+                when (parts.size) {
+                    3 -> {
+                        // yyyy.mm.dd
+                        val dt = java.time.LocalDate.of(
+                            parts[0].toInt(), parts[1].toInt(), parts[2].toInt()
+                        ).atStartOfDay(ZoneOffset.UTC).toInstant()
+                        SchemaVersion(version, dt, VersionSource.EXPLICIT)
+                    }
+                    7 -> {
+                        // yyyy.mm.dd.hh.mm.ss.nnnnnnnnn
+                        val dt = java.time.ZonedDateTime.of(
+                            parts[0].toInt(), parts[1].toInt(), parts[2].toInt(),
+                            parts[3].toInt(), parts[4].toInt(), parts[5].toInt(),
+                            parts[6].toInt(), ZoneOffset.UTC
+                        ).toInstant()
+                        SchemaVersion(version, dt, VersionSource.EXPLICIT)
+                    }
+                    else -> null
+                }
+            } catch (e: Exception) {
+                null
+            }
         }
     }
 }
