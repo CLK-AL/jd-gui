@@ -12,8 +12,7 @@ import org.jd.gui.server.svg.SvgService
 import org.jd.gui.server.svg.SvgTranscoder
 import org.jd.gui.server.sync.VCardSyncManager
 import org.jd.gui.server.xmpp.OpenfireOrgManager
-import org.koin.core.context.startKoin
-import org.koin.core.context.stopKoin
+import org.jd.gui.server.handlers.*
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
@@ -108,6 +107,46 @@ val mimeTypeHandlersModule = module {
 }
 
 /**
+ * File extension handlers module - one service per file type
+ */
+val fileExtensionHandlersModule = module {
+    // Source code handlers
+    single { JavaHandler() }
+    single { KotlinHandler() }
+    single { TypeScriptHandler() }
+    single { JavaScriptHandler() }
+    single { PythonHandler() }
+    single { GoHandler() }
+    single { RustHandler() }
+    single { CppHandler() }
+    single { CSharpHandler() }
+    single { SwiftHandler() }
+
+    // Data format handlers
+    single { JsonHandler() }
+    single { XmlHandler() }
+    single { YamlHandler() }
+    single { TomlHandler() }
+    single { PropertiesHandler() }
+    single { SqlHandler() }
+    single { MarkdownHandler() }
+    single { HtmlHandler() }
+    single { CssHandler() }
+
+    // Image handlers
+    single { PngHandler() }
+    single { JpegHandler() }
+    single { GifHandler() }
+    single { WebPHandler() }
+    single { BmpHandler() }
+    single { SvgHandler() }
+    single { IcoHandler() }
+
+    // Handler registry (depends on all handlers)
+    single { HandlerRegistry() }
+}
+
+/**
  * All server modules combined
  */
 fun allServerModules(environment: ApplicationEnvironment): List<Module> = listOf(
@@ -116,7 +155,8 @@ fun allServerModules(environment: ApplicationEnvironment): List<Module> = listOf
     externalServicesModule,
     syncServicesModule,
     diagramServicesModule,
-    mimeTypeHandlersModule
+    mimeTypeHandlersModule,
+    fileExtensionHandlersModule
 )
 
 /**

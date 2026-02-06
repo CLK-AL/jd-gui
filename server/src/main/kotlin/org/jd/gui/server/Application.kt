@@ -34,6 +34,8 @@ import org.jd.gui.server.sync.VCardSyncManager
 import org.jd.gui.server.xmpp.OpenfireOrgManager
 import org.jd.gui.server.puml.configurePlantUmlRoutes
 import org.jd.gui.server.svg.configureSvgRoutes
+import org.jd.gui.server.handlers.HandlerRegistry
+import org.jd.gui.server.handlers.configureHandlerRoutes
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
@@ -66,13 +68,16 @@ fun Application.module() {
     val bedeworkService by inject<BedeworkService>()
     val vcardSyncManager by inject<VCardSyncManager>()
     val mimeTypeRegistry by inject<MimeTypeRegistry>()
+    val handlerRegistry by inject<HandlerRegistry>()
 
     // Restore organizations and users from vCard files
     restoreOrganizationsAndUsers(vcardManager)
 
-    // Log registered MIME types
-    logger.info { "Registered ${mimeTypeRegistry.getAllExtensions().size} file extensions" }
+    // Log registered MIME types and handlers
+    logger.info { "Registered ${mimeTypeRegistry.getAllExtensions().size} MIME type extensions" }
     logger.info { "Registered ${mimeTypeRegistry.getAllMimeTypes().size} MIME types" }
+    logger.info { "Registered ${handlerRegistry.getAllHandlers().size} file extension handlers" }
+    logger.info { "Supported extensions: ${handlerRegistry.getSupportedExtensions().size}" }
 
     // Connect to external services asynchronously
     launch {
@@ -161,6 +166,10 @@ fun Application.module() {
                 "mimeTypes" to mapOf(
                     "extensions" to mimeTypeRegistry.getAllExtensions().size,
                     "types" to mimeTypeRegistry.getAllMimeTypes().size
+                ),
+                "handlers" to mapOf(
+                    "count" to handlerRegistry.getAllHandlers().size,
+                    "supportedExtensions" to handlerRegistry.getSupportedExtensions().size
                 )
             ))
         }
@@ -221,6 +230,9 @@ fun Application.module() {
 
         // Batik SVG viewer and conversion routes
         configureSvgRoutes()
+
+        // File extension handler routes
+        configureHandlerRoutes(handlerRegistry)
     }
 
     // Register shutdown hook
