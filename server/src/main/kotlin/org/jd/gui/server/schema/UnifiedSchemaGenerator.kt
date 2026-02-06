@@ -1,8 +1,121 @@
 package org.jd.gui.server.schema
 
 import mu.KotlinLogging
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.attribute.BasicFileAttributes
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Schema version derived from file creation time or explicit version.
+ *
+ * Formats:
+ * - semantic: "1.0.0" or "2025.02.06"
+ * - timestamp: "20250206T143022Z"
+ * - epoch: 1738855822
+ * - hash: "a1b2c3d4" (content hash)
+ */
+data class SchemaVersion(
+    val version: String,
+    val timestamp: Instant,
+    val source: VersionSource
+) {
+    enum class VersionSource { FILE_CREATED, FILE_MODIFIED, EXPLICIT, CONTENT_HASH, GENERATED }
+
+    val semantic: String get() = formatSemantic()
+    val calver: String get() = formatCalver()
+    val timestampStr: String get() = formatTimestamp()
+    val epoch: Long get() = timestamp.epochSecond
+
+    private fun formatSemantic(): String {
+        // Convert timestamp to semantic-like version: major.minor.patch
+        val dt = timestamp.atZone(ZoneOffset.UTC)
+        return "${dt.year - 2020}.${dt.monthValue}.${dt.dayOfMonth}"
+    }
+
+    private fun formatCalver(): String {
+        // CalVer format: YYYY.MM.DD
+        val dt = timestamp.atZone(ZoneOffset.UTC)
+        return "${dt.year}.${"%02d".format(dt.monthValue)}.${"%02d".format(dt.dayOfMonth)}"
+    }
+
+    private fun formatTimestamp(): String {
+        return DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")
+            .withZone(ZoneOffset.UTC)
+            .format(timestamp)
+    }
+
+    companion object {
+        /**
+         * Create version from file creation time.
+         */
+        fun fromFileCreated(path: Path): SchemaVersion {
+            val attrs = Files.readAttributes(path, BasicFileAttributes::class.java)
+            val creationTime = attrs.creationTime().toInstant()
+            return SchemaVersion(
+                version = formatVersion(creationTime),
+                timestamp = creationTime,
+                source = VersionSource.FILE_CREATED
+            )
+        }
+
+        /**
+         * Create version from file modification time.
+         */
+        fun fromFileModified(path: Path): SchemaVersion {
+            val modTime = Files.getLastModifiedTime(path).toInstant()
+            return SchemaVersion(
+                version = formatVersion(modTime),
+                timestamp = modTime,
+                source = VersionSource.FILE_MODIFIED
+            )
+        }
+
+        /**
+         * Create version from content hash (for change detection).
+         */
+        fun fromContentHash(content: String): SchemaVersion {
+            val hash = content.hashCode().toUInt().toString(16).padStart(8, '0')
+            return SchemaVersion(
+                version = hash,
+                timestamp = Instant.now(),
+                source = VersionSource.CONTENT_HASH
+            )
+        }
+
+        /**
+         * Create explicit version.
+         */
+        fun explicit(version: String): SchemaVersion {
+            return SchemaVersion(
+                version = version,
+                timestamp = Instant.now(),
+                source = VersionSource.EXPLICIT
+            )
+        }
+
+        /**
+         * Create version from current timestamp.
+         */
+        fun now(): SchemaVersion {
+            val now = Instant.now()
+            return SchemaVersion(
+                version = formatVersion(now),
+                timestamp = now,
+                source = VersionSource.GENERATED
+            )
+        }
+
+        private fun formatVersion(instant: Instant): String {
+            val dt = instant.atZone(ZoneOffset.UTC)
+            return "${dt.year}.${dt.monthValue}.${dt.dayOfMonth}"
+        }
+    }
+}
 
 /**
  * Result containing all generated schema formats from a single Kotlin source.
@@ -15,7 +128,8 @@ data class MultiFormatSchema(
     val graphql: String,
     val avro: String,
     val kotlinAnnotated: String,
-    val types: List<InferredType>
+    val types: List<InferredType>,
+    val version: SchemaVersion = SchemaVersion.now()
 )
 
 /**
@@ -55,11 +169,17 @@ object UnifiedSchemaGenerator {
 
     /**
      * Generate all schema formats from Kotlin source in one pass.
+     *
+     * @param kotlinSource Kotlin source code with data classes
+     * @param packageName Package name for generated schemas
+     * @param rootTypeName Optional root type name
+     * @param version Schema version (defaults to current timestamp)
      */
     fun generate(
         kotlinSource: String,
         packageName: String = "generated",
-        rootTypeName: String? = null
+        rootTypeName: String? = null,
+        version: SchemaVersion = SchemaVersion.now()
     ): MultiFormatSchema {
         // Parse Kotlin source into type graph
         val types = parseKotlinTypes(kotlinSource)
@@ -67,7 +187,7 @@ object UnifiedSchemaGenerator {
         val rootType = rootTypeName?.let { typeRegistry[it] } ?: types.firstOrNull { it.kind == TypeKind.CLASS }
 
         // Build all formats in single traversal
-        val builders = SchemaBuilders(packageName, typeRegistry)
+        val builders = SchemaBuilders(packageName, typeRegistry, version)
 
         // Recursive traversal builds all formats simultaneously
         types.forEach { type ->
@@ -82,8 +202,27 @@ object UnifiedSchemaGenerator {
             graphql = builders.buildGraphQL(),
             avro = builders.buildAvro(rootType?.name),
             kotlinAnnotated = builders.buildKotlinAnnotated(),
-            types = types
+            types = types,
+            version = version
         )
+    }
+
+    /**
+     * Generate schemas from file with version from file creation time.
+     */
+    fun generateFromFile(
+        filePath: Path,
+        packageName: String = "generated",
+        rootTypeName: String? = null,
+        useCreationTime: Boolean = true
+    ): MultiFormatSchema {
+        val content = Files.readString(filePath)
+        val version = if (useCreationTime) {
+            SchemaVersion.fromFileCreated(filePath)
+        } else {
+            SchemaVersion.fromFileModified(filePath)
+        }
+        return generate(content, packageName, rootTypeName, version)
     }
 
     /**
@@ -171,7 +310,8 @@ object UnifiedSchemaGenerator {
  */
 private class SchemaBuilders(
     private val packageName: String,
-    private val typeRegistry: Map<String, InferredType>
+    private val typeRegistry: Map<String, InferredType>,
+    private val version: SchemaVersion = SchemaVersion.now()
 ) {
     // Proto builder
     private val protoMessages = StringBuilder()
@@ -404,8 +544,11 @@ $avroFields
         kotlinTypes.appendLine()
     }
 
-    // Build final outputs
+    // Build final outputs with version metadata
     fun buildProtobuf(): String = buildString {
+        appendLine("// Schema version: ${version.version}")
+        appendLine("// Generated: ${version.timestampStr}")
+        appendLine()
         appendLine("syntax = \"proto3\";")
         appendLine()
         appendLine("package $packageName;")
@@ -420,6 +563,8 @@ $avroFields
         appendLine("{")
         appendLine("""  "$$schema": "https://json-schema.org/draft/2020-12/schema",""")
         appendLine("""  "$$id": "https://$packageName/schema.json",""")
+        appendLine("""  "version": "${version.version}",""")
+        appendLine("""  "x-generated": "${version.timestampStr}",""")
         if (rootType != null) {
             appendLine("""  "$$ref": "#/$$defs/$rootType",""")
         }
@@ -432,9 +577,12 @@ $avroFields
 
     fun buildXsd(rootType: String?): String = buildString {
         appendLine("""<?xml version="1.0" encoding="UTF-8"?>""")
+        appendLine("""<!-- Schema version: ${version.version} -->""")
+        appendLine("""<!-- Generated: ${version.timestampStr} -->""")
         appendLine("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" """)
         appendLine("""           targetNamespace="https://$packageName" """)
-        appendLine("""           xmlns:tns="https://$packageName">""")
+        appendLine("""           xmlns:tns="https://$packageName" """)
+        appendLine("""           version="${version.version}">""")
         appendLine()
         append(xsdTypes)
         if (rootType != null) {
@@ -446,6 +594,8 @@ $avroFields
     fun buildTypeScript(): String = buildString {
         appendLine("// Generated TypeScript definitions")
         appendLine("// Package: $packageName")
+        appendLine("// Version: ${version.version}")
+        appendLine("// Generated: ${version.timestampStr}")
         appendLine()
         append(tsInterfaces)
     }
@@ -453,6 +603,8 @@ $avroFields
     fun buildGraphQL(): String = buildString {
         appendLine("# Generated GraphQL schema")
         appendLine("# Package: $packageName")
+        appendLine("# Version: ${version.version}")
+        appendLine("# Generated: ${version.timestampStr}")
         appendLine()
         append(gqlTypes)
     }
@@ -460,6 +612,7 @@ $avroFields
     fun buildAvro(rootType: String?): String = buildString {
         appendLine("{")
         appendLine("""  "namespace": "$packageName",""")
+        appendLine("""  "version": "${version.version}",""")
         if (rootType != null) {
             appendLine("""  "name": "$rootType",""")
         }
@@ -473,6 +626,9 @@ $avroFields
 
     fun buildKotlinAnnotated(): String = buildString {
         appendLine("package $packageName")
+        appendLine()
+        appendLine("// Schema version: ${version.version}")
+        appendLine("// Generated: ${version.timestampStr}")
         appendLine()
         appendLine("import kotlinx.serialization.Serializable")
         appendLine("import kotlinx.serialization.protobuf.ProtoNumber")
@@ -833,5 +989,15 @@ $avroFields
 /**
  * Extension to generate all schema formats from Kotlin source.
  */
-fun String.toAllSchemas(packageName: String = "generated"): MultiFormatSchema =
-    UnifiedSchemaGenerator.generate(this, packageName)
+fun String.toAllSchemas(
+    packageName: String = "generated",
+    version: SchemaVersion = SchemaVersion.fromContentHash(this)
+): MultiFormatSchema = UnifiedSchemaGenerator.generate(this, packageName, version = version)
+
+/**
+ * Extension to generate schemas from file with version from file creation time.
+ */
+fun Path.toAllSchemas(
+    packageName: String = "generated",
+    useCreationTime: Boolean = true
+): MultiFormatSchema = UnifiedSchemaGenerator.generateFromFile(this, packageName, useCreationTime = useCreationTime)
