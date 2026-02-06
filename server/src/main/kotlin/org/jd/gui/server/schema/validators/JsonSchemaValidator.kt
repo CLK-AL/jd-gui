@@ -3,6 +3,9 @@ package org.jd.gui.server.schema.validators
 import kotlinx.serialization.json.*
 import mu.KotlinLogging
 import org.jd.gui.server.schema.*
+import java.net.URI
+import java.nio.file.Files
+import java.nio.file.Paths
 
 private val logger = KotlinLogging.logger {}
 
@@ -29,9 +32,19 @@ class JsonSchemaValidator : SchemaValidator {
         prettyPrint = true
     }
 
+    /** Cache for resolved external schemas to avoid circular resolution */
+    private val schemaCache = mutableMapOf<String, JsonElement>()
+
+    /** Set to track refs currently being resolved (for circular reference detection) */
+    private val resolvingRefs = mutableSetOf<String>()
+
     override fun validate(document: String, schema: SchemaEntry): ValidationResult {
         val errors = mutableListOf<ValidationError>()
         val warnings = mutableListOf<ValidationWarning>()
+
+        // Clear caches for each validation run
+        schemaCache.clear()
+        resolvingRefs.clear()
 
         try {
             // Parse document
@@ -40,8 +53,11 @@ class JsonSchemaValidator : SchemaValidator {
             // Parse schema
             val schemaJson = json.parseToJsonElement(schema.content)
 
+            // Determine base URI from schema location if available
+            val baseUri = schema.location?.let { URI(it) }
+
             // Validate against schema
-            validateAgainstSchema(docJson, schemaJson, "", errors, warnings)
+            validateAgainstSchema(docJson, schemaJson, "", errors, warnings, schemaJson, baseUri)
 
             return ValidationResult(
                 valid = errors.isEmpty(),
@@ -88,17 +104,37 @@ class JsonSchemaValidator : SchemaValidator {
         schema: JsonElement,
         path: String,
         errors: MutableList<ValidationError>,
-        warnings: MutableList<ValidationWarning>
+        warnings: MutableList<ValidationWarning>,
+        rootSchema: JsonElement = schema,
+        baseUri: URI? = null
     ) {
         if (schema !is JsonObject) return
 
         // Handle $ref
-        schema["${"$"}ref"]?.let { ref ->
-            // TODO: Resolve reference and validate
-            warnings.add(ValidationWarning(
-                message = "Schema reference not resolved: $ref",
-                path = path
-            ))
+        schema["${"$"}ref"]?.let { refElement ->
+            val ref = (refElement as? JsonPrimitive)?.contentOrNull ?: return@let
+
+            try {
+                val resolvedSchema = resolveRef(ref, rootSchema, baseUri, errors, warnings)
+                if (resolvedSchema != null) {
+                    // Determine the new root schema and base URI for the resolved reference
+                    val (newRootSchema, newBaseUri) = when {
+                        ref.startsWith("#") -> rootSchema to baseUri
+                        ref.contains("#") -> {
+                            val uriPart = ref.substringBefore("#")
+                            resolvedSchema to resolveUri(uriPart, baseUri)
+                        }
+                        else -> resolvedSchema to resolveUri(ref, baseUri)
+                    }
+                    validateAgainstSchema(value, resolvedSchema, path, errors, warnings, newRootSchema, newBaseUri)
+                }
+            } catch (e: Exception) {
+                errors.add(ValidationError(
+                    message = "Failed to resolve reference '$ref': ${e.message}",
+                    path = path,
+                    errorCode = "REF_RESOLUTION_ERROR"
+                ))
+            }
             return
         }
 
@@ -116,14 +152,14 @@ class JsonSchemaValidator : SchemaValidator {
                 if (value !is JsonObject) {
                     errors.add(ValidationError("Expected object at $path", path, errorCode = "TYPE_MISMATCH"))
                 } else {
-                    validateObject(value, schema, path, errors, warnings)
+                    validateObject(value, schema, path, errors, warnings, rootSchema, baseUri)
                 }
             }
             expectedType == "array" || expectedType?.contains("array") == true -> {
                 if (value !is JsonArray) {
                     errors.add(ValidationError("Expected array at $path", path, errorCode = "TYPE_MISMATCH"))
                 } else {
-                    validateArray(value, schema, path, errors, warnings)
+                    validateArray(value, schema, path, errors, warnings, rootSchema, baseUri)
                 }
             }
             expectedType == "string" || expectedType?.contains("string") == true -> {
@@ -181,7 +217,9 @@ class JsonSchemaValidator : SchemaValidator {
         schema: JsonObject,
         path: String,
         errors: MutableList<ValidationError>,
-        warnings: MutableList<ValidationWarning>
+        warnings: MutableList<ValidationWarning>,
+        rootSchema: JsonElement,
+        baseUri: URI?
     ) {
         // Required properties
         schema["required"]?.let { required ->
@@ -205,7 +243,7 @@ class JsonSchemaValidator : SchemaValidator {
                 obj.forEach { (key, value) ->
                     val propSchema = properties[key]
                     if (propSchema != null) {
-                        validateAgainstSchema(value, propSchema, "$path.$key", errors, warnings)
+                        validateAgainstSchema(value, propSchema, "$path.$key", errors, warnings, rootSchema, baseUri)
                     }
                 }
             }
@@ -253,12 +291,14 @@ class JsonSchemaValidator : SchemaValidator {
         schema: JsonObject,
         path: String,
         errors: MutableList<ValidationError>,
-        warnings: MutableList<ValidationWarning>
+        warnings: MutableList<ValidationWarning>,
+        rootSchema: JsonElement,
+        baseUri: URI?
     ) {
         // Items validation
         schema["items"]?.let { items ->
             arr.forEachIndexed { index, item ->
-                validateAgainstSchema(item, items, "$path[$index]", errors, warnings)
+                validateAgainstSchema(item, items, "$path[$index]", errors, warnings, rootSchema, baseUri)
             }
         }
 
@@ -430,6 +470,180 @@ class JsonSchemaValidator : SchemaValidator {
                     errors.add(ValidationError("Invalid IPv4 format", path, errorCode = "FORMAT_IPV4"))
                 }
             }
+        }
+    }
+
+    /**
+     * Resolves a JSON Schema $ref reference.
+     *
+     * Supports:
+     * - Local references: "#/definitions/MyType"
+     * - External references with fragment: "other-schema.json#/definitions/Type"
+     * - External references without fragment: "other-schema.json"
+     *
+     * @param ref The reference string to resolve
+     * @param rootSchema The root schema document for local references
+     * @param baseUri The base URI for resolving relative external references
+     * @param errors List to add resolution errors to
+     * @param warnings List to add resolution warnings to
+     * @return The resolved schema element, or null if resolution failed
+     */
+    private fun resolveRef(
+        ref: String,
+        rootSchema: JsonElement,
+        baseUri: URI?,
+        errors: MutableList<ValidationError>,
+        warnings: MutableList<ValidationWarning>
+    ): JsonElement? {
+        // Check for circular reference
+        if (ref in resolvingRefs) {
+            warnings.add(ValidationWarning(
+                message = "Circular reference detected: $ref",
+                path = ref
+            ))
+            return null
+        }
+
+        resolvingRefs.add(ref)
+        try {
+            return when {
+                ref.startsWith("#/") -> {
+                    // Local reference - navigate within same document using JSON Pointer
+                    navigateToPointer(ref.substring(1), rootSchema)
+                }
+                ref == "#" -> {
+                    // Reference to root of current document
+                    rootSchema
+                }
+                ref.contains("#") -> {
+                    // External reference with fragment
+                    val (uriPart, fragment) = ref.split("#", limit = 2)
+                    val externalSchema = loadExternalSchema(uriPart, baseUri)
+                    if (externalSchema != null && fragment.isNotEmpty()) {
+                        navigateToPointer("/$fragment", externalSchema)
+                    } else {
+                        externalSchema
+                    }
+                }
+                else -> {
+                    // External reference without fragment
+                    loadExternalSchema(ref, baseUri)
+                }
+            }
+        } finally {
+            resolvingRefs.remove(ref)
+        }
+    }
+
+    /**
+     * Navigates to a location in a JSON document using a JSON Pointer (RFC 6901).
+     *
+     * @param pointer The JSON Pointer path (e.g., "/definitions/MyType")
+     * @param document The JSON document to navigate
+     * @return The element at the pointer location, or null if not found
+     */
+    private fun navigateToPointer(pointer: String, document: JsonElement): JsonElement? {
+        if (pointer.isEmpty() || pointer == "/") {
+            return document
+        }
+
+        val segments = pointer.trimStart('/').split("/")
+        return segments.fold(document as JsonElement?) { current, segment ->
+            if (current == null) return null
+
+            // Decode JSON Pointer escape sequences (RFC 6901)
+            val decodedSegment = segment
+                .replace("~1", "/")
+                .replace("~0", "~")
+
+            when (current) {
+                is JsonObject -> current[decodedSegment]
+                is JsonArray -> {
+                    val index = decodedSegment.toIntOrNull()
+                    if (index != null && index >= 0 && index < current.size) {
+                        current[index]
+                    } else {
+                        null
+                    }
+                }
+                else -> null
+            }
+        }
+    }
+
+    /**
+     * Loads an external schema from a URI.
+     *
+     * @param uriString The URI string of the external schema
+     * @param baseUri The base URI for resolving relative references
+     * @return The parsed schema element, or null if loading failed
+     */
+    private fun loadExternalSchema(uriString: String, baseUri: URI?): JsonElement? {
+        // Check cache first
+        val cacheKey = if (baseUri != null) {
+            baseUri.resolve(uriString).toString()
+        } else {
+            uriString
+        }
+
+        schemaCache[cacheKey]?.let { return it }
+
+        try {
+            val uri = if (baseUri != null) {
+                baseUri.resolve(uriString)
+            } else {
+                URI(uriString)
+            }
+
+            val content = when (uri.scheme) {
+                "file", null -> {
+                    // File URI or relative path
+                    val path = if (uri.scheme == "file") {
+                        Paths.get(uri)
+                    } else {
+                        Paths.get(uri.toString())
+                    }
+                    Files.readString(path)
+                }
+                "classpath" -> {
+                    // Classpath resource
+                    val resourcePath = uri.schemeSpecificPart
+                    this::class.java.getResourceAsStream(resourcePath)?.bufferedReader()?.readText()
+                        ?: throw IllegalArgumentException("Classpath resource not found: $resourcePath")
+                }
+                else -> {
+                    // HTTP/HTTPS or other schemes - log warning and skip
+                    logger.warn { "External schema loading not supported for scheme: ${uri.scheme}" }
+                    return null
+                }
+            }
+
+            val schema = json.parseToJsonElement(content)
+            schemaCache[cacheKey] = schema
+            return schema
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to load external schema: $uriString" }
+            return null
+        }
+    }
+
+    /**
+     * Resolves a URI string against a base URI.
+     *
+     * @param uriString The URI string to resolve
+     * @param baseUri The base URI for resolution
+     * @return The resolved URI, or null if resolution failed
+     */
+    private fun resolveUri(uriString: String, baseUri: URI?): URI? {
+        return try {
+            if (baseUri != null) {
+                baseUri.resolve(uriString)
+            } else {
+                URI(uriString)
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to resolve URI: $uriString" }
+            null
         }
     }
 
