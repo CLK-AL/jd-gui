@@ -45,6 +45,9 @@ public abstract class AbstractXmlPathFinder {
 
 		try {
 			XMLInputFactory factory = XMLInputFactory.newInstance();
+			// Disable external entities to prevent XXE attacks
+			factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+			factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 			XMLStreamReader reader  = factory.createXMLStreamReader(new StringReader(text));
 
 			String tagName = "";

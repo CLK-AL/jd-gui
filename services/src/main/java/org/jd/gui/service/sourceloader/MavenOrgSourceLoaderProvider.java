@@ -218,8 +218,11 @@ public class MavenOrgSourceLoaderProvider
 				String  numFound        = null;
 
 				try (InputStream is = searchUrl.openStream()) {
-					XMLStreamReader reader = XMLInputFactory.newInstance()
-					                                        .createXMLStreamReader(is);
+					XMLInputFactory xif = XMLInputFactory.newInstance();
+					// Disable external entities to prevent XXE attacks
+					xif.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+					xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+					XMLStreamReader reader = xif.createXMLStreamReader(is);
 					String name = "";
 
 					while (reader.hasNext()) {

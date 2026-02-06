@@ -108,8 +108,11 @@ public class ConfigurationXmlPersisterProvider
 			System.out.printf("Loading Configuration from %s%n",
 			                  FILE.getAbsolutePath());
 			try (FileInputStream fis = new FileInputStream(FILE)) {
-				XMLStreamReader reader = XMLInputFactory.newInstance()
-				                                        .createXMLStreamReader(fis);
+				XMLInputFactory xif = XMLInputFactory.newInstance();
+				// Disable external entities to prevent XXE attacks
+				xif.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+				xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+				XMLStreamReader reader = xif.createXMLStreamReader(fis);
 
 				// Load values
 				String              name        = "";
