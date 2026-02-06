@@ -1,0 +1,680 @@
+@startuml Legacy Java SPI Architecture
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classFontSize 11
+skinparam noteFontSize 9
+skinparam packageStyle rectangle
+skinparam wrapWidth 280
+
+title JD-GUI Legacy Java SPI Architecture
+caption Core decompiler with Service Provider Interface (SPI) extensibility
+
+' ========================================
+' Application Entry Points
+' ========================================
+package "Application Entry" #E8F5E9 {
+    class App <<main>> {
+        +{static} main(args: String[])
+        -loadConfiguration()
+        -checkSingleInstance()
+        -createMainController()
+    }
+    note right of App
+        **Entry Point:** org.jd.gui.App
+        **Platform:** Swing/AWT
+        --
+        1. Load preferences
+        2. Check single instance
+        3. Create MainController
+        4. Initialize services
+    end note
+
+    class OsxApp <<main>> {
+        +{static} main(args: String[])
+        -registerAppleHandlers()
+    }
+    note right of OsxApp
+        **macOS Entry:** org.jd.gui.OsxApp
+        Extends App with EAWT integration
+        Handles macOS-specific events
+    end note
+
+    class MainController <<controller>> {
+        -api: API
+        -executorService: ExecutorService
+        -mainView: MainView
+        +openFile(file: File)
+        +openURI(uri: URI)
+        +getPreferences(): Map
+    }
+    note right of MainController
+        **Central Controller**
+        Implements org.jd.gui.api.API
+        --
+        Orchestrates all services:
+        - File loading
+        - Container creation
+        - Panel management
+        - Type navigation
+        - Search indexing
+    end note
+
+    App --> MainController : creates
+    OsxApp --|> App : extends
+}
+
+' ========================================
+' Core API Interfaces
+' ========================================
+package "API Interfaces (api module)" #E3F2FD {
+    interface API <<core>> {
+        +openURI(uri: URI)
+        +addPanel(title, icon, description, page)
+        +getContextualActions(entry, fragment)
+        +getPreferences(): Map<String, String>
+    }
+    note right of API
+        **Package:** org.jd.gui.api.API
+        Central interface for all services
+        Implemented by MainController
+    end note
+
+    interface Container <<model>> {
+        +getType(): String
+        +getRoot(): Entry
+        +getScheme(): String
+    }
+    note right of Container
+        **Model for archives:**
+        JAR, WAR, EAR, ZIP, directory
+        --
+        Nested Entry interface for
+        file/directory navigation
+    end note
+
+    interface "Container.Entry" as Entry <<model>> {
+        +getContainer(): Container
+        +getParent(): Entry
+        +getChildren(): Collection<Entry>
+        +getPath(): String
+        +getUri(): URI
+        +getInputStream(): InputStream
+    }
+
+    interface Type <<model>> {
+        +getFlags(): int
+        +getName(): String
+        +getSuperName(): String
+        +getInterfaceNames(): String[]
+        +getFields(): Collection<Field>
+        +getMethods(): Collection<Method>
+    }
+    note right of Type
+        **Represents decompiled types**
+        Fields, methods, inheritance
+        --
+        Nested interfaces:
+        - Type.Field
+        - Type.Method
+    end note
+
+    interface Indexes <<model>> {
+        +getIndex(name): Map
+        +SIZE: int
+    }
+    note right of Indexes
+        **Search indexes:**
+        - Strings
+        - Type declarations
+        - Method/field refs
+        - Inheritance
+    end note
+
+    Container *-- Entry : contains
+    MainController ..|> API : implements
+}
+
+' ========================================
+' Feature Mixins
+' ========================================
+package "Feature Interfaces" #FCE4EC {
+    interface UriGettable <<feature>> {
+        +getUri(): URI
+    }
+
+    interface UriOpenable <<feature>> {
+        +openUri(uri: URI): boolean
+    }
+
+    interface ContainerEntryGettable <<feature>> {
+        +getEntry(): Container.Entry
+    }
+
+    interface ContentSearchable <<feature>> {
+        +search(text: String)
+        +searchNext()
+        +searchPrevious()
+    }
+
+    interface ContentIndexable <<feature>> {
+        +index(indexes: Indexes)
+    }
+
+    interface ContentSavable <<feature>> {
+        +save(api, path)
+    }
+
+    interface LineNumberNavigable <<feature>> {
+        +goToLine(line: int)
+        +getMaxLineNumber(): int
+    }
+
+    interface FocusedTypeGettable <<feature>> {
+        +getType(): Type
+        +getFragment(): String
+    }
+}
+
+' ========================================
+' Core SPI Interfaces
+' ========================================
+package "SPI Interfaces (api/spi)" #FFF9C4 {
+    interface ContainerFactory <<SPI>> {
+        +getType(): String
+        +accept(api, path): Boolean
+        +make(api, parentEntry, path): Container
+    }
+    note right of ContainerFactory
+        **Implementations:**
+        - JarContainerFactoryProvider
+        - WarContainerFactoryProvider
+        - EarContainerFactoryProvider
+        - KarContainerFactoryProvider
+        - JavaModuleContainerFactoryProvider
+        - GenericContainerFactoryProvider
+    end note
+
+    interface FileLoader <<SPI>> {
+        +getExtensions(): String[]
+        +getDescription(): String
+        +accept(api, file): boolean
+        +load(api, file): FileLoader.Entry
+    }
+    note right of FileLoader
+        **Implementations:**
+        - ClassFileLoaderProvider (.class)
+        - JavaFileLoaderProvider (.java)
+        - JarFileLoaderProvider (.jar)
+        - WarFileLoaderProvider (.war)
+        - EarFileLoaderProvider (.ear)
+        - ZipFileLoaderProvider (.zip)
+        - AarFileLoaderProvider (.aar)
+        - JavaModuleFileLoaderProvider
+        - LogFileLoaderProvider
+    end note
+
+    interface TreeNodeFactory <<SPI>> {
+        +getSelectors(): String[]
+        +getPathPattern(): Pattern
+        +make(api, entry): TreeNodeData
+    }
+    note right of TreeNodeFactory
+        **30+ implementations**
+        --
+        Selector format:
+        containerType:fileOrDir:path
+        --
+        Examples:
+        - jar:file:*.class
+        - jar:dir:META-INF
+        - *:file:*.java
+    end note
+
+    interface PanelFactory <<SPI>> {
+        +getTypes(): String[]
+        +make(api, container): JComponent
+    }
+    note right of PanelFactory
+        **Main panel factories:**
+        - ContainerPanelFactoryProvider
+        - Default type for generic containers
+    end note
+
+    interface TypeFactory <<SPI>> {
+        +getSelectors(): String[]
+        +getPathPattern(): Pattern
+        +make(api, entry, fragment): Type
+    }
+    note right of TypeFactory
+        Extracts Type metadata
+        from container entries
+        --
+        Used for:
+        - Class decompilation
+        - Type hierarchy
+        - Search indexing
+    end note
+
+    interface Indexer <<SPI>> {
+        +getSelectors(): String[]
+        +getPathPattern(): Pattern
+        +index(api, entry, indexes)
+    }
+    note right of Indexer
+        **Implementations:**
+        - ClassFileIndexerProvider
+        - JavaFileIndexerProvider
+        - DirectoryIndexerProvider
+        - ZipFileIndexerProvider
+        - TextFileIndexerProvider
+        - XmlFileIndexerProvider
+        - WebXmlFileIndexerProvider
+    end note
+
+    interface SourceSaver <<SPI>> {
+        +getSelectors(): String[]
+        +getPathPattern(): Pattern
+        +save(api, controller, listener, path, entry)
+    }
+    note right of SourceSaver
+        **Implementations:**
+        - ClassFileSourceSaverProvider
+        - FileSourceSaverProvider
+        - DirectorySourceSaverProvider
+        - PackageSourceSaverProvider
+        - ZipFileSourceSaverProvider
+    end note
+
+    interface SourceLoader <<SPI>> {
+        +getSource(api, entry): String
+        +loadSource(api, entry, listener)
+    }
+    note right of SourceLoader
+        **Implementations:**
+        - MavenOrgSourceLoaderProvider
+        (downloads from Maven Central)
+    end note
+
+    interface UriLoader <<SPI>> {
+        +getSchemes(): String[]
+        +accept(api, uri): boolean
+        +load(api, uri): FileLoader.Entry
+    }
+
+    interface ContextualActionsFactory <<SPI>> {
+        +make(api, entry, fragment): Collection<Action>
+    }
+    note right of ContextualActionsFactory
+        **Context menu actions:**
+        - CopyQualifiedNameContextualActionsFactory
+    end note
+
+    interface PreferencesPanel <<SPI>> {
+        +getPreferencesPanel(): JComponent
+    }
+
+    interface PasteHandler <<SPI>> {
+        +accept(data): boolean
+        +paste(api, data)
+    }
+}
+
+' ========================================
+' Service Registries
+' ========================================
+package "Service Registries (app/service)" #E1BEE7 {
+    class ExtensionService <<singleton>> {
+        +{static} getInstance(): ExtensionService
+        +<T> load(type: Class<T>): Collection<T>
+        -loadFromClasspath()
+        -loadFromExtDir()
+    }
+    note right of ExtensionService
+        **Core ServiceLoader wrapper**
+        Uses Java SPI pattern
+        --
+        Loads from:
+        1. Classpath (META-INF/services)
+        2. ext/ directory (plugins)
+    end note
+
+    class ContainerFactoryService <<singleton>> {
+        +{static} getInstance()
+        +get(api, path): ContainerFactory
+        -factories: Collection<ContainerFactory>
+    }
+
+    class FileLoaderService <<singleton>> {
+        +{static} getInstance()
+        +get(api, file): FileLoader
+        -loaders: Collection<FileLoader>
+    }
+
+    class TreeNodeFactoryService <<singleton>> {
+        +{static} getInstance()
+        +get(api, entry): TreeNodeFactory
+        -factoriesBySelector: Map
+    }
+
+    class PanelFactoryService <<singleton>> {
+        +{static} getInstance()
+        +get(container): PanelFactory
+        -factories: Collection<PanelFactory>
+    }
+
+    class TypeFactoryService <<singleton>> {
+        +{static} getInstance()
+        +get(api, entry, fragment): TypeFactory
+        -factories: Collection<TypeFactory>
+    }
+
+    class IndexerService <<singleton>> {
+        +{static} getInstance()
+        +get(api, entry): Indexer
+        -indexers: Collection<Indexer>
+    }
+
+    class SourceSaverService <<singleton>> {
+        +{static} getInstance()
+        +get(api, entry): SourceSaver
+        -savers: Collection<SourceSaver>
+    }
+
+    class SourceLoaderService <<singleton>> {
+        +{static} getInstance()
+        +getLoaders(): Collection<SourceLoader>
+    }
+
+    ExtensionService --> ContainerFactory : loads
+    ExtensionService --> FileLoader : loads
+    ExtensionService --> TreeNodeFactory : loads
+    ExtensionService --> Indexer : loads
+    ExtensionService --> SourceSaver : loads
+}
+
+' ========================================
+' Container Implementations
+' ========================================
+package "Container Implementations (services/model)" #FFF3E0 {
+    abstract class GenericContainer <<abstract>> {
+        #api: API
+        #parentEntry: Entry
+        #root: Entry
+        +getType(): String
+        +getRoot(): Entry
+    }
+    note right of GenericContainer
+        **Base class for all containers**
+        Manages Entry tree structure
+        URI generation
+    end note
+
+    class JarContainer {
+        -jarFile: JarFile
+        +getType(): "jar"
+    }
+
+    class WarContainer {
+        +getType(): "war"
+    }
+
+    class EarContainer {
+        +getType(): "ear"
+    }
+
+    class KarContainer {
+        +getType(): "kar"
+    }
+
+    class JavaModuleContainer {
+        +getType(): "jmod"
+    }
+
+    GenericContainer <|-- JarContainer
+    GenericContainer <|-- WarContainer
+    GenericContainer <|-- EarContainer
+    GenericContainer <|-- KarContainer
+    GenericContainer <|-- JavaModuleContainer
+
+    JarContainer ..|> Container : implements
+    WarContainer ..|> Container : implements
+}
+
+' ========================================
+' View Components
+' ========================================
+package "View Components" #FFEBEE {
+    class MainView <<swing>> {
+        -mainTabbedPanel: MainTabbedPanel
+        -menuBar: JMenuBar
+        -toolBar: JToolBar
+    }
+    note right of MainView
+        **Main application window**
+        Swing JFrame with:
+        - Menu bar
+        - Tool bar
+        - Tabbed container panels
+    end note
+
+    class MainTabbedPanel <<swing>> {
+        -tabs: Map<Container, JComponent>
+        +addTab(container, panel)
+        +removeTab(container)
+    }
+
+    class TreeTabbedPanel <<swing>> {
+        -tree: JTree
+        -tabbedPane: JTabbedPane
+        +showEntry(entry)
+    }
+    note right of TreeTabbedPanel
+        **Container panel layout:**
+        Left: JTree (file browser)
+        Right: JTabbedPane (pages)
+    end note
+
+    class ContainerPanel <<swing>> {
+        -container: Container
+        -treeTabbedPanel: TreeTabbedPanel
+    }
+}
+
+' ========================================
+' Page Components (Display Panels)
+' ========================================
+package "Page Components (services/view)" #E0F2F1 {
+    abstract class AbstractTextPage <<abstract>> {
+        #textArea: RSyntaxTextArea
+        +setText(text: String)
+        +setCaretPosition(pos: int)
+    }
+    note right of AbstractTextPage
+        **Base for text viewers**
+        Uses RSyntaxTextArea
+        for syntax highlighting
+    end note
+
+    class JavaFilePage {
+        -type: Type
+        -decompiler: Decompiler
+    }
+    note right of JavaFilePage
+        **Decompiled Java source**
+        Uses Fernflower decompiler
+        Highlights type references
+    end note
+
+    class ClassFilePage {
+        +displayBytecode(entry)
+    }
+
+    class ModuleInfoFilePage {
+        +displayModuleInfo(entry)
+    }
+
+    class TextPage {
+        +displayPlainText(entry)
+    }
+
+    class XmlFilePage {
+        +displayXml(entry)
+    }
+
+    class ManifestFilePage {
+        +displayManifest(entry)
+    }
+
+    class LogPage {
+        +displayLog(entry)
+    }
+
+    class HyperlinkPage {
+        -hyperlinks: Map
+        +addHyperlink(range, uri)
+    }
+
+    AbstractTextPage <|-- JavaFilePage
+    AbstractTextPage <|-- ClassFilePage
+    AbstractTextPage <|-- ModuleInfoFilePage
+    AbstractTextPage <|-- TextPage
+    AbstractTextPage <|-- XmlFilePage
+    AbstractTextPage <|-- ManifestFilePage
+    AbstractTextPage <|-- LogPage
+    AbstractTextPage <|-- HyperlinkPage
+
+    JavaFilePage ..|> ContentSearchable
+    JavaFilePage ..|> ContentIndexable
+    JavaFilePage ..|> LineNumberNavigable
+    JavaFilePage ..|> FocusedTypeGettable
+}
+
+' ========================================
+' Decompiler Integration
+' ========================================
+package "Decompiler (api module)" #DCEDC8 {
+    class Fernflower <<external>> {
+        +decompile(classFile): String
+    }
+    note right of Fernflower
+        **Embedded JetBrains Fernflower**
+        Package: org.jetbrains.java.decompiler
+        --
+        Called by JavaFilePage
+        for class decompilation
+    end note
+
+    class ClassPathLoader {
+        +addClassPath(path)
+        +loadClass(name): byte[]
+    }
+
+    class ContainerLoader {
+        +loadFromContainer(entry)
+    }
+}
+
+' ========================================
+' Utility Packages
+' ========================================
+package "Utilities" #F3E5F5 {
+    class ANTLRJavaParser {
+        +parse(source): ParseTree
+    }
+    note right of ANTLRJavaParser
+        **ANTLR 4 Java parser**
+        For structured analysis
+    end note
+
+    class IndexesUtil {
+        +merge(indexes...)
+        +search(indexes, query)
+    }
+
+    class DescriptorMatcher {
+        +match(descriptor): Type
+    }
+
+    class SwingUtil {
+        +invokeLater(runnable)
+        +invokeAndWait(runnable)
+    }
+}
+
+' ========================================
+' Relationships
+' ========================================
+MainController --> ContainerFactoryService : uses
+MainController --> FileLoaderService : uses
+MainController --> TreeNodeFactoryService : uses
+MainController --> PanelFactoryService : uses
+MainController --> TypeFactoryService : uses
+MainController --> IndexerService : uses
+
+MainController --> MainView : creates
+MainView --> MainTabbedPanel : contains
+MainTabbedPanel --> ContainerPanel : contains
+ContainerPanel --> TreeTabbedPanel : contains
+
+TreeTabbedPanel --> JavaFilePage : displays
+TreeTabbedPanel --> ClassFilePage : displays
+TreeTabbedPanel --> TextPage : displays
+
+JavaFilePage --> Fernflower : decompiles
+
+' ========================================
+' File Loading Flow
+' ========================================
+note as FileLoadingFlow
+    **File Loading Flow:**
+    1. User opens file
+    2. FileLoaderService.get(file) → FileLoader
+    3. FileLoader.load() → Container
+    4. ContainerFactoryService.get() → ContainerFactory
+    5. TreeNodeFactoryService builds tree
+    6. PanelFactoryService creates panel
+    7. Display in MainTabbedPanel
+
+    **Decompilation Flow:**
+    1. Select .class entry in tree
+    2. TypeFactory extracts Type
+    3. PanelFactory creates JavaFilePage
+    4. Fernflower decompiles bytecode
+    5. Display source in RSyntaxTextArea
+end note
+
+' ========================================
+' Legend
+' ========================================
+legend right
+    |= Color |= Component |= Count |
+    | <#E8F5E9> | Application Entry | 3 classes |
+    | <#E3F2FD> | API Interfaces | 5 interfaces |
+    | <#FCE4EC> | Feature Mixins | 8 interfaces |
+    | <#FFF9C4> | SPI Interfaces | 11 interfaces |
+    | <#E1BEE7> | Service Registries | 9 singletons |
+    | <#FFF3E0> | Container Impls | 6 classes |
+    | <#FFEBEE> | View Components | 4 classes |
+    | <#E0F2F1> | Page Components | 9 classes |
+    | <#DCEDC8> | Decompiler | 3 classes |
+    | <#F3E5F5> | Utilities | 4 classes |
+
+    **Technology Stack:**
+    - Java SE 8+ (compatible with Java 21)
+    - Swing/AWT for UI
+    - RSyntaxTextArea for syntax highlighting
+    - ANTLR 4 for parsing
+    - JetBrains Fernflower for decompilation
+
+    **SPI Pattern:**
+    All extensions registered via:
+    META-INF/services/{interface}
+
+    **60+ SPI implementations**
+    **50+ language syntax providers**
+endlegend
+
+footer Generated by JD-GUI Architecture Analysis | Legacy Java Module
+
+@enduml

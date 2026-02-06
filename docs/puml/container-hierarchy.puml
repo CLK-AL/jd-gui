@@ -1,0 +1,322 @@
+@startuml Container Model Hierarchy
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classFontSize 11
+skinparam noteFontSize 9
+
+title JD-GUI Container Model Hierarchy
+caption Archive and file system container abstractions
+
+' ========================================
+' Container Interface
+' ========================================
+package "API Model (api/model)" #E3F2FD {
+    interface Container {
+        +getType(): String
+        +getRoot(): Container.Entry
+        +getScheme(): String
+        +getUri(): URI
+    }
+
+    interface "Container.Entry" as ContainerEntry {
+        +getContainer(): Container
+        +getParent(): Container.Entry
+        +getChildren(): Collection<Container.Entry>
+        +getPath(): String
+        +getUri(): URI
+        +isDirectory(): boolean
+        +getInputStream(): InputStream
+    }
+
+    Container *--> ContainerEntry : root
+    ContainerEntry o--> ContainerEntry : children
+}
+
+' ========================================
+' Generic Container Base
+' ========================================
+package "Container Implementations (services/model/container)" #FFF3E0 {
+    abstract class GenericContainer {
+        #api: API
+        #parentEntry: Container.Entry
+        #root: Container.Entry
+        --
+        +GenericContainer(api, parentEntry, rootPath)
+        +getType(): String
+        +getRoot(): Container.Entry
+        +getScheme(): String
+        +getUri(): URI
+    }
+    note right of GenericContainer
+        **Base implementation**
+        Path: services/src/main/java/
+        org/jd/gui/model/container/
+        --
+        Manages Entry tree structure
+        Provides URI generation
+        Handles child navigation
+    end note
+
+    abstract class "GenericContainer.Entry" as GenericEntry {
+        #container: Container
+        #parent: Container.Entry
+        #path: String
+        #children: Collection<Container.Entry>
+        --
+        +getContainer(): Container
+        +getParent(): Container.Entry
+        +getPath(): String
+        +getUri(): URI
+        +isDirectory(): boolean
+    }
+
+    GenericContainer *-- GenericEntry : contains
+}
+
+' ========================================
+' Specialized Containers
+' ========================================
+package "JAR-based Containers" #C8E6C9 {
+    class JarContainer {
+        -jarFile: JarFile
+        --
+        +JarContainer(api, parentEntry, jarPath)
+        +getType(): "jar"
+        +getJarFile(): JarFile
+    }
+    note right of JarContainer
+        **Standard JAR files**
+        .jar extension
+        --
+        Uses java.util.jar.JarFile
+        Supports MANIFEST.MF parsing
+        Handles module-info.class
+    end note
+
+    class "JarContainer.JarEntry" as JarEntry {
+        -jarEntry: java.util.jar.JarEntry
+        --
+        +getInputStream(): InputStream
+        +isDirectory(): boolean
+    }
+
+    JarContainer *-- JarEntry
+}
+
+package "Web Archive Containers" #FFECB3 {
+    class WarContainer {
+        --
+        +WarContainer(api, parentEntry, warPath)
+        +getType(): "war"
+    }
+    note right of WarContainer
+        **Web Application Archives**
+        .war extension
+        --
+        Structure:
+        - WEB-INF/classes/
+        - WEB-INF/lib/*.jar
+        - WEB-INF/web.xml
+        - META-INF/
+    end note
+
+    class EarContainer {
+        --
+        +EarContainer(api, parentEntry, earPath)
+        +getType(): "ear"
+    }
+    note right of EarContainer
+        **Enterprise Archives**
+        .ear extension
+        --
+        Structure:
+        - META-INF/application.xml
+        - *.war (web modules)
+        - *.jar (EJB modules)
+        - lib/*.jar
+    end note
+}
+
+package "Specialized Containers" #E1BEE7 {
+    class KarContainer {
+        --
+        +KarContainer(api, parentEntry, karPath)
+        +getType(): "kar"
+    }
+    note right of KarContainer
+        **Karaf Archive**
+        Apache Karaf feature archive
+        OSGi bundle deployment
+    end note
+
+    class JavaModuleContainer {
+        --
+        +JavaModuleContainer(api, parentEntry, jmodPath)
+        +getType(): "jmod"
+    }
+    note right of JavaModuleContainer
+        **Java Module (Java 9+)**
+        .jmod extension
+        --
+        Structure:
+        - classes/
+        - conf/
+        - lib/
+        - module-info.class
+    end note
+}
+
+package "Utility" #F5F5F5 {
+    class ContainerEntryComparator {
+        +compare(e1, e2): int
+    }
+    note right of ContainerEntryComparator
+        **Entry sorting**
+        Directories first,
+        then alphabetical
+    end note
+
+    class DelegatingFilterContainer {
+        -delegate: Container
+        -filter: Predicate<Entry>
+        --
+        +getFilteredRoot(): Entry
+    }
+    note right of DelegatingFilterContainer
+        **Filtering wrapper**
+        Path: app/src/main/java/
+        --
+        Filters container entries
+        for search results
+    end note
+}
+
+' ========================================
+' Inheritance Hierarchy
+' ========================================
+GenericContainer ..|> Container : implements
+GenericEntry ..|> ContainerEntry : implements
+
+GenericContainer <|-- JarContainer
+GenericContainer <|-- WarContainer
+GenericContainer <|-- EarContainer
+GenericContainer <|-- KarContainer
+GenericContainer <|-- JavaModuleContainer
+
+GenericEntry <|-- JarEntry
+
+Container <|.. DelegatingFilterContainer : wraps
+
+' ========================================
+' Container Factory Integration
+' ========================================
+package "Factory Providers (services/service/container)" #DCEDC8 {
+    interface ContainerFactory <<SPI>> {
+        +getType(): String
+        +accept(api, path): Boolean
+        +make(api, parentEntry, path): Container
+    }
+
+    class JarContainerFactoryProvider {
+        +getType(): "jar"
+        +accept(api, path): Boolean
+        +make(...): JarContainer
+    }
+
+    class WarContainerFactoryProvider {
+        +getType(): "war"
+        +accept(api, path): Boolean
+        +make(...): WarContainer
+    }
+
+    class EarContainerFactoryProvider {
+        +getType(): "ear"
+        +accept(api, path): Boolean
+        +make(...): EarContainer
+    }
+
+    class KarContainerFactoryProvider {
+        +getType(): "kar"
+        +accept(api, path): Boolean
+        +make(...): KarContainer
+    }
+
+    class JavaModuleContainerFactoryProvider {
+        +getType(): "jmod"
+        +accept(api, path): Boolean
+        +make(...): JavaModuleContainer
+    }
+
+    class GenericContainerFactoryProvider {
+        +getType(): "generic"
+        +accept(api, path): Boolean
+        +make(...): GenericContainer
+    }
+    note right of GenericContainerFactoryProvider
+        **Fallback factory**
+        Handles directories and
+        unknown archive formats
+    end note
+
+    ContainerFactory <|.. JarContainerFactoryProvider
+    ContainerFactory <|.. WarContainerFactoryProvider
+    ContainerFactory <|.. EarContainerFactoryProvider
+    ContainerFactory <|.. KarContainerFactoryProvider
+    ContainerFactory <|.. JavaModuleContainerFactoryProvider
+    ContainerFactory <|.. GenericContainerFactoryProvider
+
+    JarContainerFactoryProvider ..> JarContainer : creates
+    WarContainerFactoryProvider ..> WarContainer : creates
+    EarContainerFactoryProvider ..> EarContainer : creates
+    KarContainerFactoryProvider ..> KarContainer : creates
+    JavaModuleContainerFactoryProvider ..> JavaModuleContainer : creates
+}
+
+' ========================================
+' Entry URI Format
+' ========================================
+note as URIFormat
+    **Container Entry URI Formats:**
+
+    **JAR entries:**
+    jar:file:/path/to/lib.jar!/com/example/Class.class
+
+    **WAR entries:**
+    jar:file:/path/to/app.war!/WEB-INF/classes/Controller.class
+    jar:file:/path/to/app.war!/WEB-INF/lib/dep.jar!/com/Dep.class
+
+    **EAR entries:**
+    jar:file:/path/to/enterprise.ear!/module.war!/WEB-INF/...
+    jar:file:/path/to/enterprise.ear!/ejb.jar!/com/EJB.class
+
+    **Java module entries:**
+    jmod:file:/path/to/module.jmod!/classes/module-info.class
+end note
+
+' ========================================
+' Legend
+' ========================================
+legend right
+    |= Color |= Package |= Contents |
+    | <#E3F2FD> | API Model | Core interfaces |
+    | <#FFF3E0> | Generic Container | Base classes |
+    | <#C8E6C9> | JAR Containers | JAR support |
+    | <#FFECB3> | Web Containers | WAR/EAR support |
+    | <#E1BEE7> | Specialized | KAR/JMOD support |
+    | <#DCEDC8> | Factories | SPI providers |
+
+    **Supported Archive Types:**
+    - .jar (Java Archive)
+    - .war (Web Archive)
+    - .ear (Enterprise Archive)
+    - .kar (Karaf Archive)
+    - .jmod (Java Module)
+    - .zip (Generic ZIP)
+    - .aar (Android Archive)
+    - Directories
+endlegend
+
+footer JD-GUI Container Hierarchy | services/src/main/java/org/jd/gui/model/container/
+
+@enduml

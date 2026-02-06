@@ -1,0 +1,316 @@
+@startuml Tree Node Factory Selectors
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classFontSize 11
+skinparam noteFontSize 9
+skinparam packageStyle rectangle
+
+title JD-GUI Tree Node Factory Selector Pattern
+caption How TreeNodeFactory uses selectors to match container entries
+
+' ========================================
+' Selector Format
+' ========================================
+note as SelectorFormat
+    **Selector Format:**
+    {containerType}:{fileOrDir}:{pathPattern}
+
+    **Examples:**
+    - jar:file:*.class → Class files in JAR
+    - jar:dir:META-INF → META-INF directory in JAR
+    - *:file:*.java → Java files in any container
+    - war:dir:WEB-INF → WEB-INF directory in WAR
+    - ear:file:*.xml → XML files in EAR
+
+    **Wildcards:**
+    - * → matches any container type
+    - *.ext → matches file extension
+    - path/* → matches directory prefix
+end note
+
+' ========================================
+' TreeNodeFactory Interface
+' ========================================
+package "SPI Interface" #E8F5E9 {
+    interface TreeNodeFactory <<SPI>> {
+        +getSelectors(): String[]
+        +getPathPattern(): Pattern
+        +make(api, entry): TreeNodeData
+    }
+    note right of TreeNodeFactory
+        **Location:**
+        api/src/main/java/
+        org/jd/gui/spi/TreeNodeFactory.java
+    end note
+}
+
+' ========================================
+' Tree Node Factory Implementations
+' ========================================
+package "Class File Factories" #E3F2FD {
+    class ClassFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.class"]
+        +make(): ClassFileTreeNode
+    }
+    note right of ClassFileTreeNodeFactoryProvider
+        **Matches:** All .class files
+        **Icon:** Class icon with modifiers
+        **Actions:** Decompile, export
+    end note
+
+    class ModuleInfoFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:module-info.class"]
+        +make(): ModuleInfoTreeNode
+    }
+    note right of ModuleInfoFileTreeNodeFactoryProvider
+        **Higher priority** than ClassFile
+        Special handling for module-info
+    end note
+}
+
+package "Source File Factories" #C8E6C9 {
+    class JavaFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.java"]
+        +make(): JavaFileTreeNode
+    }
+
+    class JavascriptFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.js", "*:file:*.mjs"]
+        +make(): JavascriptFileTreeNode
+    }
+
+    class KotlinFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.kt", "*:file:*.kts"]
+        +make(): KotlinFileTreeNode
+    }
+
+    class TypescriptFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.ts", "*:file:*.tsx"]
+        +make(): TypescriptFileTreeNode
+    }
+
+    class GroovyFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.groovy"]
+        +make(): GroovyFileTreeNode
+    }
+
+    class ScalaFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.scala"]
+        +make(): ScalaFileTreeNode
+    }
+}
+
+package "Data File Factories" #FFF9C4 {
+    class JsonFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.json"]
+        +make(): JsonFileTreeNode
+    }
+
+    class XmlFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.xml"]
+        +make(): XmlFileTreeNode
+    }
+
+    class YamlFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.yaml", "*:file:*.yml"]
+        +make(): YamlFileTreeNode
+    }
+
+    class PropertiesFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.properties"]
+        +make(): PropertiesFileTreeNode
+    }
+
+    class SqlFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.sql"]
+        +make(): SqlFileTreeNode
+    }
+}
+
+package "Web File Factories" #FFEBEE {
+    class HtmlFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.html", "*:file:*.htm"]
+        +make(): HtmlFileTreeNode
+    }
+
+    class CssFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.css"]
+        +make(): CssFileTreeNode
+    }
+
+    class DtdFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.dtd"]
+        +make(): DtdFileTreeNode
+    }
+
+    class GraphQLFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.graphql", "*:file:*.gql"]
+        +make(): GraphQLFileTreeNode
+    }
+}
+
+package "Archive Factories" #E1BEE7 {
+    class JarFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.jar"]
+        +make(): JarFileTreeNode
+    }
+    note right of JarFileTreeNodeFactoryProvider
+        Creates nested container
+        for embedded JARs
+    end note
+
+    class WarFileTreeNodeFactoryProvider {
+        +getSelectors(): ["ear:file:*.war"]
+        +make(): WarFileTreeNode
+    }
+
+    class ZipFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.zip"]
+        +make(): ZipFileTreeNode
+    }
+}
+
+package "Directory Factories" #FFF3E0 {
+    class DirectoryTreeNodeFactoryProvider {
+        +getSelectors(): ["*:dir:*"]
+        +make(): DirectoryTreeNode
+    }
+    note right of DirectoryTreeNodeFactoryProvider
+        **Default for directories**
+        Lowest priority
+    end note
+
+    class PackageTreeNodeFactoryProvider {
+        +getSelectors(): ["jar:dir:*", "war:dir:WEB-INF/classes/*"]
+        +make(): PackageTreeNode
+    }
+    note right of PackageTreeNodeFactoryProvider
+        **Java packages**
+        Shows as package icon
+        Higher priority than DirectoryTreeNodeFactoryProvider
+    end note
+
+    class MetainfDirectoryTreeNodeFactoryProvider {
+        +getSelectors(): ["jar:dir:META-INF"]
+        +make(): MetainfDirectoryTreeNode
+    }
+
+    class WebinfDirectoryTreeNodeFactoryProvider {
+        +getSelectors(): ["war:dir:WEB-INF", "war:dir:WEB-INF/*"]
+        +make(): WebinfDirectoryTreeNode
+    }
+}
+
+package "Java Module Factories" #DCEDC8 {
+    class JavaModuleFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.jmod"]
+        +make(): JavaModuleFileTreeNode
+    }
+
+    class JavaModulePackageTreeNodeFactoryProvider {
+        +getSelectors(): ["jmod:dir:classes/*"]
+        +make(): JavaModulePackageTreeNode
+    }
+}
+
+package "Metadata Factories" #B2EBF2 {
+    class ManifestFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:META-INF/MANIFEST.MF"]
+        +make(): ManifestFileTreeNode
+    }
+    note right of ManifestFileTreeNodeFactoryProvider
+        **Specific path match**
+        Higher priority than generic
+    end note
+
+    class MetainfServiceFileTreeNodeFactoryProvider {
+        +getSelectors(): ["jar:file:META-INF/services/*"]
+        +make(): MetainfServiceFileTreeNode
+    }
+
+    class WebXmlFileTreeNodeFactoryProvider {
+        +getSelectors(): ["war:file:WEB-INF/web.xml"]
+        +make(): WebXmlFileTreeNode
+    }
+
+    class ApplicationXmlFileTreeNodeFactoryProvider {
+        +getSelectors(): ["ear:file:META-INF/application.xml"]
+        +make(): ApplicationXmlFileTreeNode
+    }
+}
+
+package "Media Factories" #FCE4EC {
+    class ImageFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.png", "*:file:*.jpg", "*:file:*.gif", "*:file:*.ico"]
+        +make(): ImageFileTreeNode
+    }
+
+    class TextFileTreeNodeFactoryProvider {
+        +getSelectors(): ["*:file:*.txt", "*:file:*.md", "*:file:*.log"]
+        +make(): TextFileTreeNode
+    }
+}
+
+' ========================================
+' Inheritance
+' ========================================
+TreeNodeFactory <|.. ClassFileTreeNodeFactoryProvider
+TreeNodeFactory <|.. ModuleInfoFileTreeNodeFactoryProvider
+TreeNodeFactory <|.. JavaFileTreeNodeFactoryProvider
+TreeNodeFactory <|.. DirectoryTreeNodeFactoryProvider
+TreeNodeFactory <|.. PackageTreeNodeFactoryProvider
+TreeNodeFactory <|.. JarFileTreeNodeFactoryProvider
+TreeNodeFactory <|.. ManifestFileTreeNodeFactoryProvider
+TreeNodeFactory <|.. ImageFileTreeNodeFactoryProvider
+
+' ========================================
+' Selector Matching Algorithm
+' ========================================
+note as MatchingAlgorithm
+    **Selector Matching Algorithm:**
+
+    1. Parse entry: container.type, entry.isDirectory, entry.path
+    2. For each registered TreeNodeFactory:
+       a. Check container type match (or wildcard *)
+       b. Check file/dir match
+       c. Check path pattern match
+    3. Sort by priority (more specific = higher)
+    4. Return first matching factory
+
+    **Priority Rules:**
+    - Exact path > pattern match
+    - Specific container > wildcard
+    - File extension > directory
+
+    **Example for "jar:file:META-INF/MANIFEST.MF":**
+    1. ManifestFileTreeNodeFactoryProvider (exact) ✓ SELECTED
+    2. TextFileTreeNodeFactoryProvider (*:file:*.MF) - lower priority
+    3. DirectoryTreeNodeFactoryProvider - doesn't match (file vs dir)
+end note
+
+' ========================================
+' Legend
+' ========================================
+legend right
+    |= Color |= Category |= Count |
+    | <#E3F2FD> | Class Files | 2 factories |
+    | <#C8E6C9> | Source Files | 6 factories |
+    | <#FFF9C4> | Data Files | 5 factories |
+    | <#FFEBEE> | Web Files | 4 factories |
+    | <#E1BEE7> | Archives | 3 factories |
+    | <#FFF3E0> | Directories | 4 factories |
+    | <#DCEDC8> | Java Modules | 2 factories |
+    | <#B2EBF2> | Metadata | 4 factories |
+    | <#FCE4EC> | Media | 2 factories |
+
+    **Total: 32+ TreeNodeFactory implementations**
+
+    **Location:**
+    services/src/main/java/
+    org/jd/gui/service/treenode/
+endlegend
+
+footer JD-GUI Tree Node Factory Pattern | services/service/treenode/
+
+@enduml

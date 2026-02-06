@@ -1,0 +1,191 @@
+@startuml File Loading and Decompilation Flow
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequenceFontSize 11
+skinparam noteFontSize 9
+
+title JD-GUI File Loading and Decompilation Flow
+caption Sequence diagram for opening and decompiling Java class files
+
+actor User
+participant "MainController" as MC
+participant "FileLoaderService" as FLS
+participant "FileLoader" as FL
+participant "ContainerFactoryService" as CFS
+participant "ContainerFactory" as CF
+participant "TreeNodeFactoryService" as TNS
+participant "PanelFactoryService" as PFS
+participant "MainView" as MV
+participant "TreeTabbedPanel" as TTP
+participant "TypeFactoryService" as TFS
+participant "Fernflower" as FF
+participant "JavaFilePage" as JFP
+
+== File Opening ==
+
+User -> MC: openFile(jarFile)
+activate MC
+
+MC -> FLS: get(api, jarFile)
+activate FLS
+FLS -> FLS: findMatchingLoader()
+FLS --> MC: JarFileLoaderProvider
+deactivate FLS
+
+MC -> FL: load(api, jarFile)
+activate FL
+note right of FL
+    Creates Container for JAR
+    Parses MANIFEST.MF
+    Builds entry tree
+end note
+
+FL -> CFS: get(api, jarPath)
+activate CFS
+CFS --> FL: JarContainerFactoryProvider
+deactivate CFS
+
+FL -> CF: make(api, parentEntry, jarPath)
+activate CF
+CF --> FL: JarContainer
+deactivate CF
+
+FL --> MC: JarContainer
+deactivate FL
+
+MC -> PFS: get(container)
+activate PFS
+PFS --> MC: ContainerPanelFactoryProvider
+deactivate PFS
+
+MC -> PFS: make(api, container)
+activate PFS
+PFS --> MC: ContainerPanel
+deactivate PFS
+
+MC -> MV: addTab(container, panel)
+activate MV
+
+MV -> TTP: initialize(container)
+activate TTP
+
+TTP -> TNS: buildTree(container.root)
+activate TNS
+note right of TNS
+    Recursively creates
+    tree nodes for all
+    entries in container
+end note
+TNS --> TTP: JTree
+deactivate TNS
+
+TTP --> MV: ready
+deactivate TTP
+
+MV --> MC: displayed
+deactivate MV
+
+MC --> User: JAR opened
+deactivate MC
+
+== Class Decompilation ==
+
+User -> TTP: selectEntry(Main.class)
+activate TTP
+
+TTP -> TFS: get(api, entry, null)
+activate TFS
+TFS --> TTP: ClassFileTypeFactoryProvider
+deactivate TFS
+
+TTP -> TFS: make(api, entry)
+activate TFS
+TFS --> TTP: Type (metadata)
+deactivate TFS
+
+TTP -> PFS: get(entry)
+activate PFS
+PFS --> TTP: ClassFilePanelFactory
+deactivate PFS
+
+TTP -> JFP: new JavaFilePage(api, entry)
+activate JFP
+
+JFP -> FF: decompile(classBytes)
+activate FF
+note right of FF
+    JetBrains Fernflower
+    Decompiles bytecode
+    to Java source
+end note
+FF --> JFP: String (source)
+deactivate FF
+
+JFP -> JFP: setSyntaxStyle("java")
+JFP -> JFP: highlightTypes()
+JFP -> JFP: addHyperlinks()
+
+JFP --> TTP: page ready
+deactivate JFP
+
+TTP -> TTP: addTab(entry, page)
+TTP --> User: source displayed
+deactivate TTP
+
+== Search Indexing ==
+
+User -> MC: searchInContainer("MyClass")
+activate MC
+
+MC -> MC: getOrCreateIndexes(container)
+
+loop for each entry in container
+    MC -> MC: indexer = IndexerService.get(entry)
+    MC -> MC: indexer.index(api, entry, indexes)
+end
+
+MC -> MC: search(indexes, "MyClass")
+MC --> User: search results
+deactivate MC
+
+== Source Navigation ==
+
+User -> JFP: clickHyperlink(typeRef)
+activate JFP
+
+JFP -> MC: openURI(typeUri)
+activate MC
+
+MC -> MC: findEntry(typeUri)
+MC -> TTP: showEntry(entry)
+activate TTP
+
+TTP -> TTP: expandTreeToEntry()
+TTP -> TTP: selectEntry()
+TTP --> MC: displayed
+deactivate TTP
+
+MC --> JFP: navigation complete
+deactivate MC
+
+JFP --> User: navigated
+deactivate JFP
+
+== Save Decompiled Source ==
+
+User -> MC: saveAllSources(outputDir)
+activate MC
+
+MC -> MC: controller = new SaveController()
+MC -> MC: listener = new ProgressListener()
+
+loop for each entry in container
+    MC -> MC: saver = SourceSaverService.get(entry)
+    MC -> MC: saver.save(api, controller, listener, outputDir, entry)
+end
+
+MC --> User: sources saved
+deactivate MC
+
+@enduml
