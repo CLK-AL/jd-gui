@@ -1,0 +1,467 @@
+@startuml MIME Types and File Extension Handlers
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classFontSize 12
+skinparam noteFontSize 10
+skinparam packageStyle rectangle
+
+title JD-GUI MIME Types and File Extension Handler Architecture
+
+' ========================================
+' Core Registry
+' ========================================
+package "Core Registry" #E8F5E9 {
+    interface LanguageSyntaxProvider {
+        +languageId: String
+        +displayName: String
+        +syntaxStyle: String
+        +fileExtensions: Collection<String>
+        +priority: Int
+        +tokenize(source: String): List<SyntaxToken>
+        +extractDeclarations(source: String): List<Declaration>
+        +extractReferences(source: String): List<Reference>
+        +supportsExtension(ext: String): Boolean
+    }
+
+    interface LanguageSyntaxProviderKt {
+        +languageId: String
+        +displayName: String
+        +syntaxStyle: String
+        +fileExtensions: Collection<String>
+        +tokenMakerClassName: String
+        +priority: Int
+        +parse(input: CharStream, listener: ParseTreeListener)
+        +createDeclarationListener(): LanguageDeclarationListenerKt?
+        +createReferenceListener(): LanguageReferenceListenerKt?
+    }
+
+    class LanguageSyntaxProviderRegistry <<expect/actual>> {
+        +getProviders(): List<LanguageSyntaxProvider>
+        +getProviderByLanguage(id: String): LanguageSyntaxProvider?
+        +getProviderByExtension(ext: String): LanguageSyntaxProvider?
+        +registerProvider(provider: LanguageSyntaxProvider)
+    }
+}
+
+' ========================================
+' Programming Languages
+' ========================================
+package "Programming Languages" #E3F2FD {
+    class JavaProvider <<handler>> {
+        languageId = "java"
+        syntaxStyle = "text/java"
+        extensions = [java]
+    }
+    note right of JavaProvider
+        **ANTLR Grammar:** Java20Parser.g4
+        **TokenMaker:** JavaTokenMaker
+        **MIME:** text/x-java-source
+    end note
+
+    class KotlinProvider <<handler>> {
+        languageId = "kotlin"
+        syntaxStyle = "text/kotlin"
+        extensions = [kt, kts]
+    }
+    note right of KotlinProvider
+        **ANTLR Grammar:** KotlinParser.g4
+        **TokenMaker:** KotlinTokenMaker
+        **MIME:** text/x-kotlin
+    end note
+
+    class TypeScriptProvider <<handler>> {
+        languageId = "typescript"
+        syntaxStyle = "text/typescript"
+        extensions = [ts, tsx, mts, cts]
+    }
+    note right of TypeScriptProvider
+        **ANTLR Grammar:** TypeScriptParser.g4
+        **TokenMaker:** TypeScriptTokenMaker
+        **MIME:** application/typescript
+    end note
+
+    class JavaScriptProvider <<handler>> {
+        languageId = "javascript"
+        syntaxStyle = "text/javascript"
+        extensions = [js, jsx, mjs, cjs]
+    }
+    note right of JavaScriptProvider
+        **ANTLR Grammar:** ECMAScript.g4
+        **TokenMaker:** JavaScriptTokenMaker
+        **MIME:** application/javascript
+    end note
+
+    class PythonProvider <<handler>> {
+        languageId = "python"
+        syntaxStyle = "text/python"
+        extensions = [py, pyw, pyi]
+    }
+    note right of PythonProvider
+        **ANTLR Grammar:** Python3Parser.g4
+        **TokenMaker:** PythonTokenMaker
+        **MIME:** text/x-python
+    end note
+
+    class CppProvider <<handler>> {
+        languageId = "cpp"
+        syntaxStyle = "text/cpp"
+        extensions = [cpp, cxx, cc, c++, hpp, hxx, h]
+    }
+    note right of CppProvider
+        **ANTLR Grammar:** CPP14Parser.g4
+        **TokenMaker:** CppTokenMaker
+        **MIME:** text/x-c++src
+    end note
+
+    class CSharpProvider <<handler>> {
+        languageId = "csharp"
+        syntaxStyle = "text/csharp"
+        extensions = [cs, csx]
+    }
+    note right of CSharpProvider
+        **ANTLR Grammar:** CSharpParser.g4
+        **TokenMaker:** CSharpTokenMaker
+        **MIME:** text/x-csharp
+    end note
+
+    class GoProvider <<handler>> {
+        languageId = "go"
+        syntaxStyle = "text/go"
+        extensions = [go]
+    }
+    note right of GoProvider
+        **ANTLR Grammar:** GoParser.g4
+        **TokenMaker:** GoTokenMaker
+        **MIME:** text/x-go
+    end note
+
+    class RustProvider <<handler>> {
+        languageId = "rust"
+        syntaxStyle = "text/rust"
+        extensions = [rs]
+    }
+    note right of RustProvider
+        **ANTLR Grammar:** RustParser.g4
+        **TokenMaker:** RustTokenMaker
+        **MIME:** text/x-rust
+    end note
+
+    class SwiftProvider <<handler>> {
+        languageId = "swift"
+        syntaxStyle = "text/swift"
+        extensions = [swift]
+    }
+    note right of SwiftProvider
+        **ANTLR Grammar:** Swift5Parser.g4
+        **TokenMaker:** SwiftTokenMaker
+        **MIME:** text/x-swift
+    end note
+}
+
+' ========================================
+' Data & Config Formats
+' ========================================
+package "Data & Config Formats" #FFF3E0 {
+    class JsonProvider <<handler>> {
+        languageId = "json"
+        syntaxStyle = "text/json"
+        extensions = [json, jsonc, json5]
+    }
+    note right of JsonProvider
+        **MIME:** application/json
+        **Handler:** JsonTokenMaker
+    end note
+
+    class XmlProvider <<handler>> {
+        languageId = "xml"
+        syntaxStyle = "text/xml"
+        extensions = [xml, xsd, xsl, xslt, svg, xaml]
+    }
+    note right of XmlProvider
+        **MIME:** application/xml, text/xml
+        **Handler:** XmlTokenMaker
+    end note
+
+    class YamlProvider <<handler>> {
+        languageId = "yaml"
+        syntaxStyle = "text/yaml"
+        extensions = [yaml, yml]
+    }
+    note right of YamlProvider
+        **MIME:** application/x-yaml
+        **Handler:** YamlTokenMaker
+    end note
+
+    class TomlProvider <<handler>> {
+        languageId = "toml"
+        syntaxStyle = "text/toml"
+        extensions = [toml]
+    }
+    note right of TomlProvider
+        **MIME:** application/toml
+        **Handler:** TomlTokenMaker
+    end note
+
+    class PropertiesProvider <<handler>> {
+        languageId = "properties"
+        syntaxStyle = "text/properties"
+        extensions = [properties, ini, cfg, conf]
+    }
+    note right of PropertiesProvider
+        **MIME:** text/x-java-properties
+        **Handler:** PropertiesTokenMaker
+    end note
+}
+
+' ========================================
+' Web Technologies
+' ========================================
+package "Web Technologies" #FCE4EC {
+    class HtmlProvider <<handler>> {
+        languageId = "html"
+        syntaxStyle = "text/html"
+        extensions = [html, htm, xhtml]
+    }
+    note right of HtmlProvider
+        **MIME:** text/html
+        **Handler:** HtmlTokenMaker
+    end note
+
+    class CssProvider <<handler>> {
+        languageId = "css"
+        syntaxStyle = "text/css"
+        extensions = [css, scss, sass, less]
+    }
+    note right of CssProvider
+        **MIME:** text/css
+        **Handler:** CssTokenMaker
+    end note
+
+    class MarkdownProvider <<handler>> {
+        languageId = "markdown"
+        syntaxStyle = "text/markdown"
+        extensions = [md, markdown, mdown]
+    }
+    note right of MarkdownProvider
+        **MIME:** text/markdown
+        **Handler:** MarkdownTokenMaker
+    end note
+}
+
+' ========================================
+' Binary & Archive Formats
+' ========================================
+package "Binary & Archive Formats" #F3E5F5 {
+    class ClassFileProvider <<handler>> {
+        languageId = "class"
+        extensions = [class]
+    }
+    note right of ClassFileProvider
+        **MIME:** application/java-vm
+        **Handler:** ClassFileReader
+        Decompiles to Java source
+    end note
+
+    class JarProvider <<handler>> {
+        languageId = "jar"
+        extensions = [jar, war, ear, aar]
+    }
+    note right of JarProvider
+        **MIME:** application/java-archive
+        **Handler:** JarContainerFactory
+        ZIP-based archive
+    end note
+
+    class ZipProvider <<handler>> {
+        languageId = "zip"
+        extensions = [zip, gz, tar, 7z]
+    }
+    note right of ZipProvider
+        **MIME:** application/zip
+        **Handler:** ArchiveContainerFactory
+    end note
+
+    class ImageProvider <<handler>> {
+        languageId = "image"
+        extensions = [png, jpg, jpeg, gif, bmp, ico, webp]
+    }
+    note right of ImageProvider
+        **MIME:** image/*
+        **Handler:** ImageViewer
+        Rendered in viewer pane
+    end note
+
+    class SvgProvider <<handler>> {
+        languageId = "svg"
+        extensions = [svg]
+    }
+    note right of SvgProvider
+        **MIME:** image/svg+xml
+        **Handler:** BatikSvgViewerPanel
+        Apache Batik rendering
+    end note
+
+    class PdfProvider <<handler>> {
+        languageId = "pdf"
+        extensions = [pdf]
+    }
+    note right of PdfProvider
+        **MIME:** application/pdf
+        **Handler:** PDFViewer
+    end note
+}
+
+' ========================================
+' vCard/Calendar Formats
+' ========================================
+package "vCard & Calendar (RFC)" #E8EAF6 {
+    class VCardProvider <<handler>> {
+        languageId = "vcard"
+        extensions = [vcf, vcard]
+    }
+    note right of VCardProvider
+        **MIME:** text/vcard
+        **RFC:** 6350 (vCard 4.0)
+        **Handler:** ez-vcard
+        **jCard:** RFC 7095 (JSON)
+    end note
+
+    class ICalendarProvider <<handler>> {
+        languageId = "icalendar"
+        extensions = [ics, ical, ifb]
+    }
+    note right of ICalendarProvider
+        **MIME:** text/calendar
+        **RFC:** 5545 (iCalendar)
+        **Handler:** ical4j
+        CalDAV compatible
+    end note
+}
+
+' ========================================
+' Diagram Formats
+' ========================================
+package "Diagram Formats" #EFEBE9 {
+    class PlantUmlProvider <<handler>> {
+        languageId = "plantuml"
+        extensions = [puml, plantuml, pu, wsd]
+    }
+    note right of PlantUmlProvider
+        **MIME:** text/x-plantuml
+        **Handler:** PlantUmlService
+        **Output:** SVG, PNG, PDF, ASCII
+        Batik SVG rendering
+    end note
+
+    class MermaidProvider <<handler>> {
+        languageId = "mermaid"
+        extensions = [mmd, mermaid]
+    }
+    note right of MermaidProvider
+        **MIME:** text/x-mermaid
+        **Handler:** MermaidRenderer
+    end note
+
+    class GraphvizProvider <<handler>> {
+        languageId = "graphviz"
+        extensions = [dot, gv]
+    }
+    note right of GraphvizProvider
+        **MIME:** text/vnd.graphviz
+        **Handler:** GraphvizRenderer
+    end note
+}
+
+' ========================================
+' Build & Script Files
+' ========================================
+package "Build & Script Files" #FBE9E7 {
+    class GradleProvider <<handler>> {
+        languageId = "gradle"
+        extensions = [gradle, gradle.kts]
+    }
+    note right of GradleProvider
+        **MIME:** text/x-gradle
+        **Handler:** GroovyTokenMaker
+        or KotlinTokenMaker
+    end note
+
+    class MavenProvider <<handler>> {
+        languageId = "maven"
+        extensions = [pom]
+    }
+    note right of MavenProvider
+        **MIME:** application/xml
+        **Handler:** XmlTokenMaker
+        Maven POM files
+    end note
+
+    class ShellProvider <<handler>> {
+        languageId = "shell"
+        extensions = [sh, bash, zsh, fish]
+    }
+    note right of ShellProvider
+        **MIME:** application/x-sh
+        **Handler:** ShellTokenMaker
+    end note
+
+    class DockerfileProvider <<handler>> {
+        languageId = "dockerfile"
+        extensions = [dockerfile]
+    }
+    note right of DockerfileProvider
+        **MIME:** text/x-dockerfile
+        **Handler:** DockerfileTokenMaker
+    end note
+
+    class MakefileProvider <<handler>> {
+        languageId = "makefile"
+        extensions = [makefile, mk, mak]
+    }
+    note right of MakefileProvider
+        **MIME:** text/x-makefile
+        **Handler:** MakefileTokenMaker
+    end note
+}
+
+' ========================================
+' Relationships
+' ========================================
+LanguageSyntaxProvider <|.. JavaProvider
+LanguageSyntaxProvider <|.. KotlinProvider
+LanguageSyntaxProvider <|.. TypeScriptProvider
+LanguageSyntaxProvider <|.. JavaScriptProvider
+LanguageSyntaxProvider <|.. PythonProvider
+LanguageSyntaxProvider <|.. CppProvider
+LanguageSyntaxProvider <|.. CSharpProvider
+LanguageSyntaxProvider <|.. GoProvider
+LanguageSyntaxProvider <|.. RustProvider
+LanguageSyntaxProvider <|.. SwiftProvider
+LanguageSyntaxProvider <|.. JsonProvider
+LanguageSyntaxProvider <|.. XmlProvider
+LanguageSyntaxProvider <|.. YamlProvider
+LanguageSyntaxProvider <|.. TomlProvider
+LanguageSyntaxProvider <|.. PropertiesProvider
+LanguageSyntaxProvider <|.. HtmlProvider
+LanguageSyntaxProvider <|.. CssProvider
+LanguageSyntaxProvider <|.. MarkdownProvider
+
+LanguageSyntaxProviderRegistry --> LanguageSyntaxProvider : manages
+
+' ========================================
+' Legend
+' ========================================
+legend right
+    |= Color |= Category |
+    | <#E8F5E9> | Core Registry |
+    | <#E3F2FD> | Programming Languages |
+    | <#FFF3E0> | Data & Config Formats |
+    | <#FCE4EC> | Web Technologies |
+    | <#F3E5F5> | Binary & Archive |
+    | <#E8EAF6> | vCard & Calendar |
+    | <#EFEBE9> | Diagram Formats |
+    | <#FBE9E7> | Build & Scripts |
+endlegend
+
+@enduml

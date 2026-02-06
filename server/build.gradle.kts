@@ -93,6 +93,13 @@ dependencies {
     implementation("org.apache.xmlgraphics:batik-codec:1.17")
     implementation("org.apache.xmlgraphics:batik-svggen:1.17")
 
+    // Koin for Dependency Injection (IoC)
+    implementation("io.insert-koin:koin-core:3.5.3")
+    implementation("io.insert-koin:koin-ktor:3.5.3")
+    implementation("io.insert-koin:koin-logger-slf4j:3.5.3")
+    testImplementation("io.insert-koin:koin-test:3.5.3")
+    testImplementation("io.insert-koin:koin-test-junit5:3.5.3")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 

@@ -25,6 +25,8 @@ import org.jd.gui.server.auth.VCardOrgManager
 import org.jd.gui.server.auth.configureKeycloakAuth
 import org.jd.gui.server.bedework.BedeworkService
 import org.jd.gui.server.config.ServerConfig
+import org.jd.gui.server.di.MimeTypeRegistry
+import org.jd.gui.server.di.allServerModules
 import org.jd.gui.server.matrix.MatrixSocialService
 import org.jd.gui.server.webdav.configureWebDav
 import org.jd.gui.server.sync.configureSyncRoutes
@@ -32,20 +34,11 @@ import org.jd.gui.server.sync.VCardSyncManager
 import org.jd.gui.server.xmpp.OpenfireOrgManager
 import org.jd.gui.server.puml.configurePlantUmlRoutes
 import org.jd.gui.server.svg.configureSvgRoutes
+import org.koin.ktor.ext.inject
+import org.koin.ktor.plugin.Koin
+import org.koin.logger.slf4jLogger
 
 private val logger = KotlinLogging.logger {}
-
-// Global service instances
-lateinit var vcardManager: VCardOrgManager
-    private set
-lateinit var openfireManager: OpenfireOrgManager
-    private set
-lateinit var matrixService: MatrixSocialService
-    private set
-lateinit var bedeworkService: BedeworkService
-    private set
-lateinit var vcardSyncManager: VCardSyncManager
-    private set
 
 fun main(args: Array<String>) {
     embeddedServer(
@@ -59,34 +52,31 @@ fun main(args: Array<String>) {
 fun Application.module() {
     logger.info { "Starting JD-GUI Server..." }
 
-    // Load configuration
-    val config = ServerConfig.load(environment.config)
+    // Install Koin for dependency injection
+    install(Koin) {
+        slf4jLogger()
+        modules(allServerModules(environment))
+    }
 
-    // Initialize VCard manager and restore orgs/users from files
-    vcardManager = VCardOrgManager(config.storage.basePath)
+    // Inject dependencies from Koin
+    val config by inject<ServerConfig>()
+    val vcardManager by inject<VCardOrgManager>()
+    val openfireManager by inject<OpenfireOrgManager>()
+    val matrixService by inject<MatrixSocialService>()
+    val bedeworkService by inject<BedeworkService>()
+    val vcardSyncManager by inject<VCardSyncManager>()
+    val mimeTypeRegistry by inject<MimeTypeRegistry>()
+
+    // Restore organizations and users from vCard files
     restoreOrganizationsAndUsers(vcardManager)
 
-    // Initialize Openfire XMPP manager for org vCard sync
-    openfireManager = OpenfireOrgManager(config.openfire, vcardManager)
-
-    // Initialize Matrix social service
-    matrixService = MatrixSocialService(config.matrix)
-
-    // Initialize Bedework CalDAV/CardDAV service
-    bedeworkService = BedeworkService(config.bedework, vcardManager)
-
-    // Initialize unified vCard sync manager
-    vcardSyncManager = VCardSyncManager(
-        vcardManager = vcardManager,
-        openfireManager = openfireManager,
-        matrixService = matrixService,
-        bedeworkService = bedeworkService,
-        basePath = config.storage.basePath
-    )
+    // Log registered MIME types
+    logger.info { "Registered ${mimeTypeRegistry.getAllExtensions().size} file extensions" }
+    logger.info { "Registered ${mimeTypeRegistry.getAllMimeTypes().size} MIME types" }
 
     // Connect to external services asynchronously
     launch {
-        initializeExternalServices(config)
+        initializeExternalServices(config, openfireManager, matrixService, bedeworkService)
     }
 
     // Install plugins
@@ -167,7 +157,56 @@ fun Application.module() {
                         "enabled" to config.bedework.enabled,
                         "status" to serviceStatus[org.jd.gui.server.sync.SyncService.BEDEWORK]?.isOnline
                     )
+                ),
+                "mimeTypes" to mapOf(
+                    "extensions" to mimeTypeRegistry.getAllExtensions().size,
+                    "types" to mimeTypeRegistry.getAllMimeTypes().size
                 )
+            ))
+        }
+
+        // MIME type lookup endpoint
+        get("/api/mime/{extension}") {
+            val extension = call.parameters["extension"] ?: return@get call.respondError(
+                HttpStatusCode.BadRequest, "Extension required"
+            )
+            val info = mimeTypeRegistry.getInfo(extension)
+            if (info != null) {
+                call.respondJson(mapOf(
+                    "extension" to info.extension,
+                    "mimeType" to info.mimeType,
+                    "description" to info.description,
+                    "category" to info.category.name
+                ))
+            } else {
+                call.respondError(HttpStatusCode.NotFound, "Unknown extension: $extension")
+            }
+        }
+
+        // List all MIME types
+        get("/api/mime") {
+            val category = call.request.queryParameters["category"]
+            val types = if (category != null) {
+                try {
+                    val cat = org.jd.gui.server.di.MimeCategory.valueOf(category.uppercase())
+                    mimeTypeRegistry.getByCategory(cat)
+                } catch (e: IllegalArgumentException) {
+                    mimeTypeRegistry.getAllExtensions().mapNotNull { mimeTypeRegistry.getInfo(it) }
+                }
+            } else {
+                mimeTypeRegistry.getAllExtensions().mapNotNull { mimeTypeRegistry.getInfo(it) }
+            }
+
+            call.respondJson(mapOf(
+                "count" to types.size,
+                "types" to types.map { info ->
+                    mapOf(
+                        "extension" to info.extension,
+                        "mimeType" to info.mimeType,
+                        "description" to info.description,
+                        "category" to info.category.name
+                    )
+                }
             ))
         }
 
@@ -198,7 +237,12 @@ fun Application.module() {
 /**
  * Initialize external services (Openfire, Matrix, Bedework)
  */
-private suspend fun initializeExternalServices(config: ServerConfig) {
+private suspend fun initializeExternalServices(
+    config: ServerConfig,
+    openfireManager: OpenfireOrgManager,
+    matrixService: MatrixSocialService,
+    bedeworkService: BedeworkService
+) {
     // Connect to Openfire for org vCard sync
     if (config.openfire.enabled) {
         logger.info { "Connecting to Openfire XMPP server..." }
