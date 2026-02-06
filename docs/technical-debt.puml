@@ -1,0 +1,472 @@
+@startuml technical-debt-tracking
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Monospaced
+skinparam packageStyle rectangle
+
+title Technical Debt Tracking - JD-GUI\nComprehensive Analysis
+caption Generated: 2026-02-06 | Branch: claude/java-21-graalvm-support-Q3IAS\nAgents: Security, Performance, Code Quality
+
+' ========================================
+' LEGEND
+' ========================================
+legend right
+  |= Status |= Color |
+  | Not Started | <#LightGray> |
+  | In Progress | <#LightBlue> |
+  | Blocked | <#Orange> |
+  | Completed | <#LightGreen> |
+  | Critical | <#Pink> |
+endlegend
+
+' ========================================
+' HIGH PRIORITY - SCHEMA VALIDATORS
+' ========================================
+package "Schema Validators" as SchemaValidators #Pink {
+
+  object "XSD Validation" as XSD #LightGray {
+    file: OtherValidators.kt:20
+    status: NOT_STARTED
+    effort: Medium
+    --
+    Use javax.xml.validation.SchemaFactory
+    Parse XSD, validate XML documents
+  }
+
+  object "GraphQL Validation" as GraphQL #LightGray {
+    file: OtherValidators.kt:58
+    status: NOT_STARTED
+    effort: Medium
+    --
+    Use graphql-java library
+    Validate SDL and queries
+  }
+
+  object "$ref Resolution" as RefResolve #LightGray {
+    file: JsonSchemaValidator.kt:97
+    status: NOT_STARTED
+    effort: High
+    --
+    Resolve JSON Schema references
+    Support local and remote refs
+    Handle circular references
+  }
+
+  note bottom of XSD
+    **Dependencies:**
+    - javax.xml.validation (JDK)
+    - ANTLR XML grammar (optional)
+  end note
+
+  note bottom of GraphQL
+    **Dependencies:**
+    - graphql-java:21.x
+    - Or ANTLR GraphQL grammar
+  end note
+}
+
+' ========================================
+' HIGH PRIORITY - ANTLR LEXERS
+' ========================================
+package "ANTLR Token Makers" as TokenMakers #Pink {
+
+  object "Java Lexer" as JavaLexer #LightGray {
+    file: JavaTokenMaker.kt:88-93
+    status: NOT_STARTED
+    effort: Medium
+    --
+    createLexer() -> NotImplementedError
+    getVocabulary() -> NotImplementedError
+  }
+
+  object "Kotlin Lexer" as KotlinLexer #LightGray {
+    file: KotlinTokenMaker.kt:136-142
+    status: NOT_STARTED
+    effort: Medium
+    --
+    createLexer() -> NotImplementedError
+    getVocabulary() -> NotImplementedError
+  }
+
+  object "TypeScript Lexer" as TSLexer #LightGray {
+    file: TypeScriptTokenMaker.kt:119-157
+    status: NOT_STARTED
+    effort: Medium
+    --
+    TS + JS lexers needed
+    createLexer() -> NotImplementedError
+  }
+
+  note right of JavaLexer
+    **ANTLR Grammars:**
+    github.com/antlr/grammars-v4
+
+    **Generate with:**
+    antlr4 -Dlanguage=Kotlin Java.g4
+  end note
+}
+
+' ========================================
+' HIGH PRIORITY - MISSING TESTS
+' ========================================
+package "Missing Test Coverage" as MissingTests #Pink {
+
+  object "Schema Generator Tests" as SchemaGenTests #LightGray {
+    file: UnifiedSchemaGenerator.kt
+    lines: 500+
+    coverage: 0%
+    --
+    Test multi-format generation
+    Test recursive types
+    Test collection mappings
+  }
+
+  object "Schema Version Tests" as VersionTests #LightGray {
+    file: UnifiedSchemaGenerator.kt
+    status: NOT_STARTED
+    --
+    Test file time parsing
+    Test version formats
+    Test parse() round-trip
+  }
+
+  object "AsyncAPI Patch Tests" as AsyncTests #LightGray {
+    file: AsyncApiPatch.kt
+    lines: 300+
+    coverage: 0%
+    --
+    Test all patch operations
+    Test DSL builder
+    Test error handling
+  }
+
+  object "URI Resolver Tests" as UriTests #LightGray {
+    file: ClasspathUriResolver.kt
+    status: NOT_STARTED
+    --
+    Test classpath: URIs
+    Test caching behavior
+    Test TTL expiration
+  }
+
+  object "Validator Tests" as ValidatorTests #LightGray {
+    files: *Validator.kt
+    count: 6 validators
+    coverage: 0%
+    --
+    JSON, XSD, GraphQL
+    Protobuf, OpenAPI, AsyncAPI
+  }
+
+  object "Inferrer Tests" as InferrerTests #LightGray {
+    file: SchemaInferrers.kt
+    status: NOT_STARTED
+    --
+    Test Kotlin to Proto
+    Test @ProtoNumber gen
+    Test recursive detection
+  }
+}
+
+' ========================================
+' MEDIUM PRIORITY - LANGUAGE PROVIDERS
+' ========================================
+package "Language Syntax Providers" as LangProviders #Orange {
+
+  object "Systems Languages" as SysLang #LightGray {
+    count: 6
+    status: STUB
+    --
+    C, C++, Rust, Go, Zig, Ada
+    All throw UnsupportedOperationException
+  }
+
+  object "Scripting Languages" as ScriptLang #LightGray {
+    count: 7
+    status: STUB
+    --
+    Python, Ruby, PHP, Perl
+    Lua, Groovy, Shell
+  }
+
+  object "JVM Languages" as JVMLang #LightGray {
+    count: 2
+    status: PARTIAL
+    --
+    Scala, Kotlin (partial)
+    TokenMaker exists, no ANTLR
+  }
+
+  object "Web Languages" as WebLang #LightGray {
+    count: 5
+    status: PARTIAL
+    --
+    HTML, CSS, SCSS, Less
+    Markdown, LaTeX
+  }
+
+  object "Data Formats" as DataLang #LightGray {
+    count: 5
+    status: PARTIAL
+    --
+    JSON, YAML, XML, TOML
+    Properties, SQL
+  }
+
+  note bottom of SysLang
+    **Location:**
+    services/src/main/java/org/jd/gui/
+    service/language/*LanguageSyntaxProvider.java
+
+    **Pattern:** Line 23 throws
+    UnsupportedOperationException
+  end note
+}
+
+' ========================================
+' LOW PRIORITY - DECOMPILER FIXES
+' ========================================
+package "Decompiler FIXME Items" as Decompiler #LightBlue {
+
+  object "Control Flow" as CFG #LightGray {
+    file: ControlFlowGraph.java
+    fixmes: 5
+    --
+    :580 - successor finding
+    :633 - sort order issues
+  }
+
+  object "Nested Classes" as Nested #LightGray {
+    file: NestedClassProcessor.java
+    fixmes: 8
+    --
+    :352 - variable flags
+    :707 - parameter names
+    :1291 - edge handling
+  }
+
+  object "If Helper" as IfHelper #LightGray {
+    file: IfHelper.java:482
+    fixmes: 1
+    priority: HIGH
+    --
+    "FIXME: rewrite the entire method!!!"
+  }
+
+  object "Merge Helper" as MergeHelper #LightGray {
+    file: MergeHelper.java
+    fixmes: 3
+    --
+    :243 - extraction step
+    :332 - inheritance check
+    :571 - edge case
+  }
+
+  note right of IfHelper
+    **Risk:** Core decompiler logic
+    May affect output correctness
+    Requires extensive testing
+  end note
+}
+
+' ========================================
+' SECURITY ISSUES (from agent scan)
+' ========================================
+package "Security Issues" as Security #Pink {
+
+  object "Unsafe Deserialization" as Deser #Pink {
+    file: InterProcessCommunicationUtil.java
+    lines: 33, 35
+    severity: HIGH
+    --
+    ObjectInputStream.readObject()
+    No input filtering
+    RCE vulnerability risk
+  }
+
+  object "XXE Vulnerabilities" as XXE #Orange {
+    files: 3 XML parsers
+    severity: MEDIUM
+    --
+    ConfigurationXmlPersisterProvider:111
+    MavenOrgSourceLoaderProvider:221
+    AbstractXmlPathFinder:47
+    Missing DTD protection
+  }
+
+  object "Dynamic ClassLoading" as DynLoad #Orange {
+    file: ExtensionService.java
+    lines: 44-45
+    severity: MEDIUM
+    --
+    URLClassLoader no validation
+    No JAR signature check
+    Resource leak (not closed)
+  }
+
+  note bottom of Deser
+    **Fix:**
+    Use ObjectInputFilter (Java 9+)
+    Whitelist only String[] class
+  end note
+}
+
+' ========================================
+' PERFORMANCE ISSUES (from agent scan)
+' ========================================
+package "Performance Issues" as Performance #Orange {
+
+  object "Regex in Loops" as RegexLoop #Orange {
+    file: TypePage.java
+    lines: 147-151
+    impact: HIGH
+    --
+    Pattern.compile() every call
+    Should cache patterns
+  }
+
+  object "Sync Map Anti-pattern" as SyncMap #Orange {
+    file: ClasspathHelper.java
+    lines: 26-32
+    impact: HIGH
+    --
+    containsKey+get+put
+    Use computeIfAbsent()
+  }
+
+  object "Busy-Wait Loop" as BusyWait #LightGray {
+    file: ClassWrapper.java
+    lines: 93-97
+    impact: MEDIUM
+    --
+    200ms polling interval
+    Use CountDownLatch
+  }
+
+  object "ThreadLocal Leak" as TLLeak #LightGray {
+    file: MethodProcessorRunnable.java
+    lines: 26-28
+    impact: MEDIUM
+    --
+    Static ThreadLocal fields
+    No cleanup between runs
+  }
+
+  note bottom of RegexLoop
+    **Pattern Cache:**
+    Map<String, Pattern>
+    WeakHashMap for memory
+  end note
+}
+
+' ========================================
+' CODE QUALITY (from agent scan)
+' ========================================
+package "Code Quality Issues" as CodeQuality #LightBlue {
+
+  object "God Classes" as GodClass #Orange {
+    count: 25 files > 500 lines
+    critical: 9 files > 1000 lines
+    --
+    ClassWriter.java: 2,209
+    InvocationExprent.java: 1,937
+    NestedClassProcessor.java: 1,469
+  }
+
+  object "instanceof Abuse" as Instanceof #Orange {
+    count: 494+ checks
+    impact: Maintainability
+    --
+    Missing Visitor pattern
+    Violates Open/Closed
+    Hard to extend
+  }
+
+  object "Service Locator" as ServiceLoc #LightGray {
+    file: DecompilerContext.java
+    impact: Coupling
+    --
+    17 static accessors
+    Global mutable state
+    Hard to test
+  }
+
+  object "Debug Output" as DebugOut #LightGray {
+    count: 12 files
+    impact: LOW
+    --
+    System.out.println
+    printStackTrace()
+    Should use logger
+  }
+}
+
+' ========================================
+' RELATIONSHIPS
+' ========================================
+SchemaValidators -[hidden]down-> TokenMakers
+TokenMakers -[hidden]down-> MissingTests
+MissingTests -[hidden]down-> LangProviders
+LangProviders -[hidden]down-> Decompiler
+
+' ========================================
+' PROGRESS TRACKING
+' ========================================
+note as Progress
+  **Progress Summary**
+  ====================
+
+  | Category | Total | Done | % |
+  |----------|-------|------|---|
+  | Schema Validators | 3 | 0 | 0% |
+  | ANTLR Lexers | 4 | 0 | 0% |
+  | Missing Tests | 6 | 0 | 0% |
+  | Lang Providers | 24 | 0 | 0% |
+  | Decompiler FIXME | 50+ | 0 | 0% |
+  | Security Issues | 3 | 0 | 0% |
+  | Performance | 4 | 0 | 0% |
+  | God Classes | 25 | 0 | 0% |
+
+  **Scan Status:**
+  - [x] TODO/FIXME scan
+  - [x] NotImplementedError scan
+  - [x] Test coverage analysis
+  - [x] Dependency analysis
+  - [x] Performance hotspots
+  - [x] Security audit
+  - [x] Code quality scan
+
+  **Priority Actions:**
+  1. Fix ObjectInputStream deserialization
+  2. Add XXE protection to XML parsers
+  3. Cache compiled regex patterns
+  4. Add tests for schema components
+  5. Implement $ref resolution
+end note
+
+note as Stats
+  **Codebase Statistics**
+  ======================
+  Total Files: 479 Java + Kotlin
+  Total LOC: ~103,559
+  Test Files: 8
+  Test LOC: ~2,448
+
+  **Key Metrics:**
+  - God classes (>500 LOC): 25
+  - instanceof checks: 494+
+  - Try blocks: 757
+  - Static methods: 101+
+  - FIXME comments: 50+
+
+  **Dependencies:**
+  - Ktor: 2.3.7
+  - ANTLR: 4.13.1
+  - ASM: 9.6 (Java 21)
+  - PDFBox: 3.0.1
+  - Vineflower: 1.11.0
+end note
+
+Progress -[hidden]right-> Stats
+
+@enduml
