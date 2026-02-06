@@ -25,6 +25,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.function.BiFunction;
 import java.util.regex.Matcher;
@@ -44,6 +45,12 @@ public abstract class TypePage
 	protected TreeMap<Integer, DeclarationData> typeDeclarations = new TreeMap<>();
 	protected ArrayList<ReferenceData>          references       = new ArrayList<>();
 	protected ArrayList<StringData>             strings          = new ArrayList<>();
+
+	private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
+
+	private static Pattern getCachedPattern(String regex) {
+		return PATTERN_CACHE.computeIfAbsent(regex, Pattern::compile);
+	}
 
 	public TypePage(API api,
 	                Container.Entry entry) {
@@ -144,11 +151,11 @@ public abstract class TypePage
 		if ((highlightFlags != null) && (highlightPattern != null)) {
 			String  highlightScope = parameters.get("highlightScope");
 			String  regexp         = createRegExp(highlightPattern);
-			Pattern pattern        = Pattern.compile(regexp + ".*");
+			Pattern pattern        = getCachedPattern(regexp + ".*");
 
 			if (highlightFlags.indexOf('s') != -1) {
 				// Highlight strings
-				Pattern patternForString = Pattern.compile(regexp);
+				Pattern patternForString = getCachedPattern(regexp);
 
 				for (StringData data : strings) {
 					if (matchScope(highlightScope,
