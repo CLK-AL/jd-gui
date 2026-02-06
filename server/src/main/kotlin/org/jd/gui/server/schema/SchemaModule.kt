@@ -201,30 +201,32 @@ class SchemaValidationService(
     }
 
     private fun convertToProtobuf(inferred: InferredSchema): String {
-        return buildString {
-            appendLine("syntax = \"proto3\";")
-            appendLine()
-
-            inferred.types.forEach { type ->
-                appendLine("message ${type.name} {")
-                type.properties.forEachIndexed { index, prop ->
-                    val protoType = kotlinToProtoType(prop.type)
-                    appendLine("  $protoType ${prop.name} = ${index + 1};")
-                }
-                appendLine("}")
-                appendLine()
-            }
-        }
+        // Use KotlinSchemaInferrer's enhanced protobuf generation
+        val kotlinInferrer = KotlinSchemaInferrer()
+        return kotlinInferrer.toProtobuf(inferred.types)
     }
+}
 
-    private fun kotlinToProtoType(kotlinType: String): String = when (kotlinType.lowercase()) {
-        "string" -> "string"
-        "int" -> "int32"
-        "long" -> "int64"
-        "float" -> "float"
-        "double" -> "double"
-        "boolean" -> "bool"
-        "bytes", "bytearray" -> "bytes"
-        else -> kotlinType
-    }
+/**
+ * Extension to generate protobuf from Kotlin source directly.
+ *
+ * Usage:
+ * ```
+ * val kotlinSource = """
+ *     @Serializable
+ *     data class User(
+ *         @ProtoNumber(1) val id: Long,
+ *         @ProtoNumber(2) val name: String,
+ *         @ProtoNumber(3) val email: String?,
+ *         @ProtoNumber(4) val roles: List<String> = emptyList()
+ *     )
+ * """
+ * val proto = kotlinSource.toProtobuf(packageName = "com.example")
+ * ```
+ */
+fun String.toProtobuf(packageName: String? = null): String? {
+    val inferrer = KotlinSchemaInferrer()
+    if (!inferrer.canInfer(this)) return null
+    val inferred = inferrer.infer(this)
+    return inferrer.toProtobuf(inferred.types, packageName)
 }

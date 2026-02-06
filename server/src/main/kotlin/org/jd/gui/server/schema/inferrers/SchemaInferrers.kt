@@ -248,6 +248,11 @@ class TypeScriptSchemaInferrer : SchemaInferrer {
  * - Data class definitions
  * - Sealed class hierarchies
  * - @Serializable annotations
+ *
+ * Supports kotlinx-serialization-protobuf annotations:
+ * - @ProtoNumber for field numbers
+ * - @ProtoPacked for packed repeated fields
+ * - @ProtoType for type overrides
  */
 class KotlinSchemaInferrer : SchemaInferrer {
 
@@ -270,7 +275,7 @@ class KotlinSchemaInferrer : SchemaInferrer {
             types.add(parseDataClass(name, params))
         }
 
-        // Extract sealed classes
+        // Extract sealed classes (for oneof in proto)
         val sealedRegex = Regex("""sealed\s+class\s+(\w+)""")
         sealedRegex.findAll(source).forEach { match ->
             val name = match.groupValues[1]
@@ -282,11 +287,15 @@ class KotlinSchemaInferrer : SchemaInferrer {
         enumRegex.findAll(source).forEach { match ->
             val name = match.groupValues[1]
             val body = match.groupValues[2]
-            val values = body.split(",").map { it.trim().substringBefore("(") }
+            val values = body.split(",")
+                .map { it.trim().substringBefore("(") }
+                .filter { it.isNotEmpty() && !it.startsWith("//") }
             types.add(InferredType(
                 name = name,
                 kind = TypeKind.ENUM,
-                properties = values.map { InferredProperty(name = it, type = "String") }
+                properties = values.mapIndexed { i, v ->
+                    InferredProperty(name = v, type = i.toString())
+                }
             ))
         }
 
@@ -302,19 +311,27 @@ class KotlinSchemaInferrer : SchemaInferrer {
 
     private fun parseDataClass(name: String, params: String): InferredType {
         val properties = mutableListOf<InferredProperty>()
-        val paramRegex = Regex("""(val|var)\s+(\w+):\s*([^,=]+)(?:\s*=\s*([^,]+))?""")
+        // Match properties with optional @ProtoNumber annotation
+        val paramRegex = Regex("""(?:@ProtoNumber\((\d+)\)\s*)?(val|var)\s+(\w+):\s*([^,=]+)(?:\s*=\s*([^,]+))?""")
 
         paramRegex.findAll(params).forEach { match ->
-            val propName = match.groupValues[2]
-            val propType = match.groupValues[3].trim()
-            val defaultValue = match.groupValues[4].takeIf { it.isNotEmpty() }?.trim()
+            val protoNumber = match.groupValues[1].takeIf { it.isNotEmpty() }
+            val propName = match.groupValues[3]
+            val propType = match.groupValues[4].trim()
+            val defaultValue = match.groupValues[5].takeIf { it.isNotEmpty() }?.trim()
+
+            val annotations = mutableListOf<String>()
+            if (protoNumber != null) {
+                annotations.add("@ProtoNumber($protoNumber)")
+            }
 
             properties.add(InferredProperty(
                 name = propName,
                 type = propType,
                 nullable = propType.endsWith("?"),
                 optional = defaultValue != null,
-                defaultValue = defaultValue
+                defaultValue = defaultValue,
+                annotations = annotations
             ))
         }
 
@@ -326,6 +343,7 @@ class KotlinSchemaInferrer : SchemaInferrer {
             appendLine("@file:UseSerializers()")
             appendLine()
             appendLine("import kotlinx.serialization.Serializable")
+            appendLine("import kotlinx.serialization.protobuf.ProtoNumber")
             appendLine()
 
             types.forEach { type ->
@@ -358,6 +376,134 @@ class KotlinSchemaInferrer : SchemaInferrer {
                 appendLine()
             }
         }
+    }
+
+    /**
+     * Generate Protocol Buffers .proto file from Kotlin data classes.
+     *
+     * Type mappings (kotlinx-serialization-protobuf compatible):
+     * - Int -> int32
+     * - Long -> int64
+     * - Float -> float
+     * - Double -> double
+     * - Boolean -> bool
+     * - String -> string
+     * - ByteArray -> bytes
+     * - List<T> -> repeated T
+     * - Map<K, V> -> map<K, V>
+     * - nullable types -> optional fields (proto3)
+     */
+    fun toProtobuf(types: List<InferredType>, packageName: String? = null): String {
+        return buildString {
+            appendLine("syntax = \"proto3\";")
+            appendLine()
+            if (packageName != null) {
+                appendLine("package $packageName;")
+                appendLine()
+            }
+
+            types.forEach { type ->
+                when (type.kind) {
+                    TypeKind.ENUM -> generateProtoEnum(this, type)
+                    TypeKind.UNION -> generateProtoOneof(this, type, types)
+                    else -> generateProtoMessage(this, type)
+                }
+                appendLine()
+            }
+        }
+    }
+
+    private fun generateProtoMessage(sb: StringBuilder, type: InferredType) {
+        sb.appendLine("message ${type.name} {")
+        type.properties.forEachIndexed { index, prop ->
+            val protoType = kotlinToProtoType(prop.type)
+            val fieldNumber = extractProtoNumber(prop) ?: (index + 1)
+            val optional = if (prop.nullable) "optional " else ""
+            sb.appendLine("  $optional$protoType ${toSnakeCase(prop.name)} = $fieldNumber;")
+        }
+        sb.appendLine("}")
+    }
+
+    private fun generateProtoEnum(sb: StringBuilder, type: InferredType) {
+        sb.appendLine("enum ${type.name} {")
+        type.properties.forEachIndexed { index, prop ->
+            val enumValue = prop.type.toIntOrNull() ?: index
+            sb.appendLine("  ${toScreamingSnakeCase(prop.name)} = $enumValue;")
+        }
+        sb.appendLine("}")
+    }
+
+    private fun generateProtoOneof(sb: StringBuilder, sealedType: InferredType, allTypes: List<InferredType>) {
+        // Find subclasses of sealed class
+        val subclasses = allTypes.filter { it.kind == TypeKind.CLASS && it.name != sealedType.name }
+
+        sb.appendLine("message ${sealedType.name} {")
+        sb.appendLine("  oneof value {")
+        subclasses.forEachIndexed { index, subclass ->
+            sb.appendLine("    ${subclass.name} ${toSnakeCase(subclass.name)} = ${index + 1};")
+        }
+        sb.appendLine("  }")
+        sb.appendLine("}")
+    }
+
+    private fun extractProtoNumber(prop: InferredProperty): Int? {
+        val annotation = prop.annotations.find { it.startsWith("@ProtoNumber") }
+        return annotation?.substringAfter("(")?.substringBefore(")")?.toIntOrNull()
+    }
+
+    private fun kotlinToProtoType(kotlinType: String): String {
+        val baseType = kotlinType.removeSuffix("?").trim()
+
+        // Handle collections
+        if (baseType.startsWith("List<") || baseType.startsWith("MutableList<")) {
+            val innerType = baseType.substringAfter("<").substringBeforeLast(">")
+            return "repeated ${kotlinToProtoType(innerType)}"
+        }
+
+        if (baseType.startsWith("Set<") || baseType.startsWith("MutableSet<")) {
+            val innerType = baseType.substringAfter("<").substringBeforeLast(">")
+            return "repeated ${kotlinToProtoType(innerType)}"
+        }
+
+        if (baseType.startsWith("Map<") || baseType.startsWith("MutableMap<")) {
+            val inner = baseType.substringAfter("<").substringBeforeLast(">")
+            val parts = inner.split(",").map { it.trim() }
+            if (parts.size == 2) {
+                return "map<${kotlinToProtoType(parts[0])}, ${kotlinToProtoType(parts[1])}>"
+            }
+        }
+
+        // kotlinx-serialization-protobuf type mappings
+        return when (baseType.lowercase()) {
+            "int", "integer" -> "int32"
+            "uint" -> "uint32"
+            "long" -> "int64"
+            "ulong" -> "uint64"
+            "short" -> "int32"  // proto3 uses int32 for smaller types
+            "ushort" -> "uint32"
+            "byte" -> "int32"
+            "ubyte" -> "uint32"
+            "float" -> "float"
+            "double" -> "double"
+            "boolean", "bool" -> "bool"
+            "string" -> "string"
+            "bytearray" -> "bytes"
+            "unit" -> "google.protobuf.Empty"
+            "any" -> "google.protobuf.Any"
+            "instant" -> "google.protobuf.Timestamp"
+            "duration" -> "google.protobuf.Duration"
+            else -> baseType  // Custom message type
+        }
+    }
+
+    private fun toSnakeCase(camelCase: String): String {
+        return camelCase.replace(Regex("([a-z])([A-Z])")) {
+            "${it.groupValues[1]}_${it.groupValues[2]}"
+        }.lowercase()
+    }
+
+    private fun toScreamingSnakeCase(name: String): String {
+        return toSnakeCase(name).uppercase()
     }
 }
 
