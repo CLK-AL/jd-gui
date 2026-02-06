@@ -486,32 +486,81 @@ $avroFields
         return annotation?.substringAfter("(")?.substringBefore(")")?.toIntOrNull()
     }
 
+    /**
+     * Collection type patterns:
+     * - List<T>, MutableList<T>, ArrayList<T>
+     * - Set<T>, MutableSet<T>, HashSet<T>, LinkedHashSet<T>
+     * - Map<K, V>, MutableMap<K, V>, HashMap<K, V>, LinkedHashMap<K, V>
+     * - Multimap<K, V> -> Map<K, List<V>> (Guava-style)
+     * - SetMultimap<K, V> -> Map<K, Set<V>>
+     *
+     * Key types: String, Int, Long, UUID, Instant (Timestamp)
+     * Proto map keys must be: int32, int64, uint32, uint64, sint32, sint64, bool, string
+     */
     private fun toProtoType(kotlinType: String): String {
         val base = kotlinType.removeSuffix("?").trim()
         return when {
-            base.startsWith("List<") || base.startsWith("MutableList<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
+            // List types
+            isListType(base) -> {
+                val inner = extractGenericType(base)
                 "repeated ${toProtoType(inner)}"
             }
-            base.startsWith("Map<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
-                val parts = inner.split(",").map { it.trim() }
-                "map<${toProtoType(parts[0])}, ${toProtoType(parts[1])}>"
+            // Set types (treated as repeated with unique constraint - proto has no native set)
+            isSetType(base) -> {
+                val inner = extractGenericType(base)
+                "repeated ${toProtoType(inner)}"
+            }
+            // Multimap<K, V> -> map<K, repeated V> (proto doesn't support, use wrapper message)
+            isMultimapType(base) -> {
+                val (keyType, valueType) = extractMapTypes(base)
+                // Proto can't have repeated values in maps, so we use a wrapper
+                "map<${toProtoKeyType(keyType)}, ${valueType}Values>"
+            }
+            // Map types
+            isMapType(base) -> {
+                val (keyType, valueType) = extractMapTypes(base)
+                "map<${toProtoKeyType(keyType)}, ${toProtoType(valueType)}>"
             }
             typeRegistry.containsKey(base) -> base
-            else -> when (base.lowercase()) {
-                "int", "integer" -> "int32"
-                "long" -> "int64"
-                "float" -> "float"
-                "double" -> "double"
-                "boolean", "bool" -> "bool"
-                "string" -> "string"
-                "bytearray" -> "bytes"
-                "instant" -> "google.protobuf.Timestamp"
-                "duration" -> "google.protobuf.Duration"
-                else -> base
-            }
+            else -> toProtoScalarType(base)
         }
+    }
+
+    private fun toProtoKeyType(kotlinType: String): String {
+        // Proto map keys: int32, int64, uint32, uint64, sint32, sint64, bool, string
+        // UUID and Timestamp keys must be string
+        return when (kotlinType.lowercase()) {
+            "int", "integer" -> "int32"
+            "long" -> "int64"
+            "uint" -> "uint32"
+            "ulong" -> "uint64"
+            "boolean", "bool" -> "bool"
+            "string" -> "string"
+            "uuid" -> "string"  // UUID as string key
+            "instant", "timestamp" -> "string"  // Timestamp as ISO string key
+            else -> "string"
+        }
+    }
+
+    private fun toProtoScalarType(type: String): String = when (type.lowercase()) {
+        "int", "integer" -> "int32"
+        "uint" -> "uint32"
+        "long" -> "int64"
+        "ulong" -> "uint64"
+        "short" -> "int32"
+        "byte" -> "int32"
+        "float" -> "float"
+        "double" -> "double"
+        "boolean", "bool" -> "bool"
+        "string" -> "string"
+        "bytearray", "bytes" -> "bytes"
+        "uuid" -> "string"  // UUID as string
+        "instant", "timestamp" -> "google.protobuf.Timestamp"
+        "duration" -> "google.protobuf.Duration"
+        "localdate" -> "string"  // ISO date string
+        "localdatetime" -> "string"  // ISO datetime string
+        "zoneddatetime" -> "google.protobuf.Timestamp"
+        else -> type
     }
 
     private fun toJsonSchemaType(prop: InferredProperty): String {
@@ -519,15 +568,21 @@ $avroFields
         val isNullable = prop.nullable
 
         val typeObj = when {
-            base.startsWith("List<") || base.startsWith("Set<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
+            isListType(base) || isSetType(base) -> {
+                val inner = extractGenericType(base)
                 val itemType = toJsonSchemaTypeSimple(inner)
-                """{"type": "array", "items": $itemType}"""
+                val uniqueItems = if (isSetType(base)) """, "uniqueItems": true""" else ""
+                """{"type": "array", "items": $itemType$uniqueItems}"""
             }
-            base.startsWith("Map<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
-                val valueType = inner.split(",").getOrNull(1)?.trim() ?: "string"
-                """{"type": "object", "additionalProperties": ${toJsonSchemaTypeSimple(valueType)}}"""
+            isMultimapType(base) -> {
+                val (keyType, valueType) = extractMapTypes(base)
+                val keyFormat = getJsonSchemaKeyFormat(keyType)
+                """{"type": "object", "additionalProperties": {"type": "array", "items": ${toJsonSchemaTypeSimple(valueType)}}$keyFormat}"""
+            }
+            isMapType(base) -> {
+                val (keyType, valueType) = extractMapTypes(base)
+                val keyFormat = getJsonSchemaKeyFormat(keyType)
+                """{"type": "object", "additionalProperties": ${toJsonSchemaTypeSimple(valueType)}$keyFormat}"""
             }
             typeRegistry.containsKey(base) -> """{"$$ref": "#/$$defs/$base"}"""
             else -> toJsonSchemaTypeSimple(base)
@@ -539,115 +594,235 @@ $avroFields
         } else typeObj
     }
 
+    private fun getJsonSchemaKeyFormat(keyType: String): String = when (keyType.lowercase()) {
+        "uuid" -> """, "propertyNames": {"format": "uuid"}"""
+        "instant", "timestamp" -> """, "propertyNames": {"format": "date-time"}"""
+        "int", "integer", "long" -> """, "propertyNames": {"pattern": "^-?[0-9]+$"}"""
+        else -> ""
+    }
+
     private fun toJsonSchemaTypeSimple(type: String): String = when (type.lowercase()) {
         "int", "integer", "long", "short", "byte" -> """{"type": "integer"}"""
+        "uint", "ulong", "ushort", "ubyte" -> """{"type": "integer", "minimum": 0}"""
         "float", "double" -> """{"type": "number"}"""
         "boolean", "bool" -> """{"type": "boolean"}"""
         "string" -> """{"type": "string"}"""
-        "instant" -> """{"type": "string", "format": "date-time"}"""
+        "uuid" -> """{"type": "string", "format": "uuid"}"""
+        "instant", "timestamp", "zoneddatetime" -> """{"type": "string", "format": "date-time"}"""
+        "localdate" -> """{"type": "string", "format": "date"}"""
+        "localdatetime" -> """{"type": "string", "format": "date-time"}"""
         "duration" -> """{"type": "string", "format": "duration"}"""
+        "uri", "url" -> """{"type": "string", "format": "uri"}"""
+        "email" -> """{"type": "string", "format": "email"}"""
+        "bytearray", "bytes" -> """{"type": "string", "contentEncoding": "base64"}"""
         else -> if (typeRegistry.containsKey(type)) """{"$$ref": "#/$$defs/$type"}""" else """{"type": "string"}"""
     }
 
     private fun toXsdType(kotlinType: String): String {
         val base = kotlinType.removeSuffix("?").trim()
         return when {
-            base.startsWith("List<") || base.startsWith("Set<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
+            isListType(base) || isSetType(base) -> {
+                val inner = extractGenericType(base)
                 toXsdType(inner)
             }
+            isMapType(base) || isMultimapType(base) -> "tns:MapEntry"  // Custom XSD type
             typeRegistry.containsKey(base) -> "tns:$base"
-            else -> when (base.lowercase()) {
-                "int", "integer" -> "xs:int"
-                "long" -> "xs:long"
-                "short" -> "xs:short"
-                "byte" -> "xs:byte"
-                "float" -> "xs:float"
-                "double" -> "xs:double"
-                "boolean", "bool" -> "xs:boolean"
-                "string" -> "xs:string"
-                "instant" -> "xs:dateTime"
-                "duration" -> "xs:duration"
-                "bytearray" -> "xs:base64Binary"
-                else -> "xs:string"
-            }
+            else -> toXsdScalarType(base)
         }
+    }
+
+    private fun toXsdScalarType(type: String): String = when (type.lowercase()) {
+        "int", "integer" -> "xs:int"
+        "long" -> "xs:long"
+        "short" -> "xs:short"
+        "byte" -> "xs:byte"
+        "uint" -> "xs:unsignedInt"
+        "ulong" -> "xs:unsignedLong"
+        "ushort" -> "xs:unsignedShort"
+        "ubyte" -> "xs:unsignedByte"
+        "float" -> "xs:float"
+        "double" -> "xs:double"
+        "boolean", "bool" -> "xs:boolean"
+        "string" -> "xs:string"
+        "uuid" -> "xs:string"  // Pattern: [a-f0-9]{8}-...
+        "instant", "timestamp", "zoneddatetime" -> "xs:dateTime"
+        "localdate" -> "xs:date"
+        "localdatetime" -> "xs:dateTime"
+        "duration" -> "xs:duration"
+        "uri", "url" -> "xs:anyURI"
+        "bytearray", "bytes" -> "xs:base64Binary"
+        else -> "xs:string"
     }
 
     private fun toTypeScriptType(kotlinType: String): String {
         val base = kotlinType.removeSuffix("?").trim()
         return when {
-            base.startsWith("List<") || base.startsWith("Set<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
+            isListType(base) -> {
+                val inner = extractGenericType(base)
                 "${toTypeScriptType(inner)}[]"
             }
-            base.startsWith("Map<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
-                val parts = inner.split(",").map { it.trim() }
-                "Record<${toTypeScriptType(parts[0])}, ${toTypeScriptType(parts.getOrElse(1) { "any" })}>"
+            isSetType(base) -> {
+                val inner = extractGenericType(base)
+                "Set<${toTypeScriptType(inner)}>"
+            }
+            isMultimapType(base) -> {
+                val (keyType, valueType) = extractMapTypes(base)
+                "Map<${toTypeScriptKeyType(keyType)}, ${toTypeScriptType(valueType)}[]>"
+            }
+            isMapType(base) -> {
+                val (keyType, valueType) = extractMapTypes(base)
+                if (keyType.lowercase() in listOf("string", "int", "integer", "long")) {
+                    "Record<${toTypeScriptKeyType(keyType)}, ${toTypeScriptType(valueType)}>"
+                } else {
+                    "Map<${toTypeScriptKeyType(keyType)}, ${toTypeScriptType(valueType)}>"
+                }
             }
             typeRegistry.containsKey(base) -> base
-            else -> when (base.lowercase()) {
-                "int", "integer", "long", "short", "byte", "float", "double" -> "number"
-                "boolean", "bool" -> "boolean"
-                "string" -> "string"
-                "any" -> "any"
-                "bytearray" -> "Uint8Array"
-                "instant", "duration" -> "string"
-                else -> base
-            }
+            else -> toTypeScriptScalarType(base)
         }
+    }
+
+    private fun toTypeScriptKeyType(type: String): String = when (type.lowercase()) {
+        "int", "integer", "long", "short", "byte" -> "number"
+        "string" -> "string"
+        "uuid" -> "string"  // UUID as string
+        "instant", "timestamp" -> "string"  // ISO string
+        else -> "string"
+    }
+
+    private fun toTypeScriptScalarType(type: String): String = when (type.lowercase()) {
+        "int", "integer", "long", "short", "byte", "float", "double" -> "number"
+        "uint", "ulong", "ushort", "ubyte" -> "number"
+        "boolean", "bool" -> "boolean"
+        "string" -> "string"
+        "uuid" -> "string"  // or use UUID type with uuid package
+        "instant", "timestamp", "zoneddatetime", "localdatetime" -> "Date"
+        "localdate" -> "string"
+        "duration" -> "string"
+        "any" -> "any"
+        "bytearray", "bytes" -> "Uint8Array"
+        else -> type
     }
 
     private fun toGraphQLType(kotlinType: String, nullable: Boolean): String {
         val base = kotlinType.removeSuffix("?").trim()
         val gqlType = when {
-            base.startsWith("List<") || base.startsWith("Set<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
+            isListType(base) || isSetType(base) -> {
+                val inner = extractGenericType(base)
                 "[${toGraphQLType(inner, false)}]"
             }
-            typeRegistry.containsKey(base) -> base
-            else -> when (base.lowercase()) {
-                "int", "integer", "short", "byte" -> "Int"
-                "long" -> "Int"  // GraphQL has no Long
-                "float", "double" -> "Float"
-                "boolean", "bool" -> "Boolean"
-                "string", "instant", "duration" -> "String"
-                else -> base
+            isMapType(base) || isMultimapType(base) -> {
+                // GraphQL has no native map, use JSON scalar or custom type
+                "JSON"
             }
+            typeRegistry.containsKey(base) -> base
+            else -> toGraphQLScalarType(base)
         }
         return if (nullable) gqlType else "$gqlType!"
+    }
+
+    private fun toGraphQLScalarType(type: String): String = when (type.lowercase()) {
+        "int", "integer", "short", "byte" -> "Int"
+        "long" -> "Int"  // GraphQL has no Long, use custom scalar
+        "uint", "ulong" -> "Int"
+        "float", "double" -> "Float"
+        "boolean", "bool" -> "Boolean"
+        "string" -> "String"
+        "uuid" -> "ID"  // UUID often maps to ID
+        "instant", "timestamp", "zoneddatetime" -> "DateTime"  // Custom scalar
+        "localdate" -> "Date"  // Custom scalar
+        "localdatetime" -> "DateTime"
+        "duration" -> "String"
+        else -> type
     }
 
     private fun toAvroType(kotlinType: String, nullable: Boolean): String {
         val base = kotlinType.removeSuffix("?").trim()
         val avroType = when {
-            base.startsWith("List<") || base.startsWith("Set<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
+            isListType(base) || isSetType(base) -> {
+                val inner = extractGenericType(base)
                 """{"type": "array", "items": ${toAvroType(inner, false)}}"""
             }
-            base.startsWith("Map<") -> {
-                val inner = base.substringAfter("<").substringBeforeLast(">")
-                val valueType = inner.split(",").getOrNull(1)?.trim() ?: "string"
+            isMultimapType(base) -> {
+                val (_, valueType) = extractMapTypes(base)
+                """{"type": "map", "values": {"type": "array", "items": ${toAvroType(valueType, false)}}}"""
+            }
+            isMapType(base) -> {
+                val (_, valueType) = extractMapTypes(base)
+                // Avro maps always have string keys
                 """{"type": "map", "values": ${toAvroType(valueType, false)}}"""
             }
             typeRegistry.containsKey(base) -> "\"$base\""
-            else -> when (base.lowercase()) {
-                "int", "integer" -> "\"int\""
-                "long" -> "\"long\""
-                "float" -> "\"float\""
-                "double" -> "\"double\""
-                "boolean", "bool" -> "\"boolean\""
-                "string" -> "\"string\""
-                "bytearray" -> "\"bytes\""
-                else -> "\"string\""
-            }
+            else -> toAvroScalarType(base)
         }
         return if (nullable) """["null", $avroType]""" else avroType
     }
 
+    private fun toAvroScalarType(type: String): String = when (type.lowercase()) {
+        "int", "integer" -> "\"int\""
+        "long" -> "\"long\""
+        "float" -> "\"float\""
+        "double" -> "\"double\""
+        "boolean", "bool" -> "\"boolean\""
+        "string" -> "\"string\""
+        "uuid" -> """{"type": "string", "logicalType": "uuid"}"""
+        "instant", "timestamp" -> """{"type": "long", "logicalType": "timestamp-millis"}"""
+        "localdate" -> """{"type": "int", "logicalType": "date"}"""
+        "localdatetime" -> """{"type": "long", "logicalType": "local-timestamp-millis"}"""
+        "duration" -> """{"type": "fixed", "size": 12, "logicalType": "duration"}"""
+        "bytearray", "bytes" -> "\"bytes\""
+        else -> "\"string\""
+    }
+
+    // Collection type detection helpers
+    private fun isListType(type: String): Boolean =
+        type.startsWith("List<") || type.startsWith("MutableList<") ||
+        type.startsWith("ArrayList<") || type.startsWith("LinkedList<")
+
+    private fun isSetType(type: String): Boolean =
+        type.startsWith("Set<") || type.startsWith("MutableSet<") ||
+        type.startsWith("HashSet<") || type.startsWith("LinkedHashSet<") ||
+        type.startsWith("TreeSet<") || type.startsWith("SortedSet<")
+
+    private fun isMapType(type: String): Boolean =
+        type.startsWith("Map<") || type.startsWith("MutableMap<") ||
+        type.startsWith("HashMap<") || type.startsWith("LinkedHashMap<") ||
+        type.startsWith("TreeMap<") || type.startsWith("SortedMap<") ||
+        type.startsWith("ConcurrentHashMap<")
+
+    private fun isMultimapType(type: String): Boolean =
+        type.startsWith("Multimap<") || type.startsWith("SetMultimap<") ||
+        type.startsWith("ListMultimap<") || type.startsWith("HashMultimap<") ||
+        type.startsWith("ArrayListMultimap<") || type.startsWith("LinkedHashMultimap<")
+
     private fun isCollectionType(type: String): Boolean =
-        type.startsWith("List<") || type.startsWith("Set<") || type.startsWith("MutableList<")
+        isListType(type) || isSetType(type) || isMapType(type) || isMultimapType(type)
+
+    private fun extractGenericType(type: String): String =
+        type.substringAfter("<").substringBeforeLast(">").trim()
+
+    private fun extractMapTypes(type: String): Pair<String, String> {
+        val inner = extractGenericType(type)
+        val parts = splitGenericParams(inner)
+        return Pair(parts.getOrElse(0) { "String" }.trim(), parts.getOrElse(1) { "Any" }.trim())
+    }
+
+    private fun splitGenericParams(params: String): List<String> {
+        // Handle nested generics: Map<String, List<Int>>
+        val result = mutableListOf<String>()
+        var depth = 0
+        var current = StringBuilder()
+        for (c in params) {
+            when {
+                c == '<' -> { depth++; current.append(c) }
+                c == '>' -> { depth--; current.append(c) }
+                c == ',' && depth == 0 -> { result.add(current.toString()); current = StringBuilder() }
+                else -> current.append(c)
+            }
+        }
+        if (current.isNotEmpty()) result.add(current.toString())
+        return result
+    }
 
     private fun toSnakeCase(camelCase: String): String =
         camelCase.replace(Regex("([a-z])([A-Z])")) { "${it.groupValues[1]}_${it.groupValues[2]}" }.lowercase()
