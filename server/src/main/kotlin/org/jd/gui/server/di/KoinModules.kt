@@ -182,8 +182,13 @@ val fileExtensionHandlersModule = module {
     single { DocxHandler() }              // Word document processing
     single { XlsxHandler() }              // Excel spreadsheet processing
     single { PptxHandler() }              // PowerPoint presentation processing
-    single { FontHandler() }              // Font file processing
+    single { FontHandler() }              // Font file processing (basic)
     single { TikaHandler() }              // Universal content detection (fallback)
+
+    // Enhanced media handlers
+    single { FontBoxEnhancedHandler() }   // Font with Bootstrap char grid XHTML
+    single { ImageMetadataHandler() }     // EXIF/IPTC/XMP image metadata
+    single { FFmpegMediaHandler() }       // Audio/video with FFmpeg
 
     // XHTML Converter Service - Base backend handler (Tika-based)
     single { XhtmlConverterService() }    // Common XHTML output for all converters
@@ -308,6 +313,30 @@ class MimeTypeRegistry {
         register("woff2", "font/woff2", "Web Open Font Format 2", MimeCategory.BINARY)
         register("eot", "application/vnd.ms-fontobject", "Embedded OpenType font", MimeCategory.BINARY)
 
+        // Audio
+        register("mp3", "audio/mpeg", "MP3 audio", MimeCategory.AUDIO)
+        register("wav", "audio/wav", "WAV audio", MimeCategory.AUDIO)
+        register("flac", "audio/flac", "FLAC audio", MimeCategory.AUDIO)
+        register("aac", "audio/aac", "AAC audio", MimeCategory.AUDIO)
+        register("ogg", "audio/ogg", "OGG audio", MimeCategory.AUDIO)
+        register("wma", "audio/x-ms-wma", "WMA audio", MimeCategory.AUDIO)
+        register("m4a", "audio/mp4", "M4A audio", MimeCategory.AUDIO)
+        register("opus", "audio/opus", "Opus audio", MimeCategory.AUDIO)
+        register("aiff", "audio/aiff", "AIFF audio", MimeCategory.AUDIO)
+
+        // Video
+        register("mp4", "video/mp4", "MP4 video", MimeCategory.VIDEO)
+        register("mkv", "video/x-matroska", "Matroska video", MimeCategory.VIDEO)
+        register("avi", "video/x-msvideo", "AVI video", MimeCategory.VIDEO)
+        register("mov", "video/quicktime", "QuickTime video", MimeCategory.VIDEO)
+        register("wmv", "video/x-ms-wmv", "WMV video", MimeCategory.VIDEO)
+        register("flv", "video/x-flv", "Flash video", MimeCategory.VIDEO)
+        register("webm", "video/webm", "WebM video", MimeCategory.VIDEO)
+        register("m4v", "video/x-m4v", "M4V video", MimeCategory.VIDEO)
+        register("mpeg", "video/mpeg", "MPEG video", MimeCategory.VIDEO)
+        register("mpg", "video/mpeg", "MPEG video", MimeCategory.VIDEO)
+        register("3gp", "video/3gpp", "3GP video", MimeCategory.VIDEO)
+
         // vCard/Calendar
         register("vcf", "text/vcard", "vCard contact", MimeCategory.CONTACT)
         register("vcard", "text/vcard", "vCard contact", MimeCategory.CONTACT)
@@ -381,5 +410,7 @@ enum class MimeCategory {
     CONTACT,
     CALENDAR,
     DIAGRAM,
-    BUILD
+    BUILD,
+    AUDIO,
+    VIDEO
 }

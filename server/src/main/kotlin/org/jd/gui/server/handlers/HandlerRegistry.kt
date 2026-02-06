@@ -98,6 +98,11 @@ class HandlerRegistry : KoinComponent {
     private val fontHandler: FontHandler by inject()
     private val tikaHandler: TikaHandler by inject()
 
+    // Enhanced media handlers
+    private val fontBoxEnhancedHandler: FontBoxEnhancedHandler by inject()
+    private val imageMetadataHandler: ImageMetadataHandler by inject()
+    private val ffmpegMediaHandler: FFmpegMediaHandler by inject()
+
     // XHTML Converter - Base backend handler with Tika
     private val xhtmlHandler: XhtmlHandler by inject()
 
@@ -174,8 +179,13 @@ class HandlerRegistry : KoinComponent {
         registerHandler(docxHandler)              // Word documents
         registerHandler(xlsxHandler)              // Excel spreadsheets
         registerHandler(pptxHandler)              // PowerPoint presentations
-        registerHandler(fontHandler)              // Font files
+        registerHandler(fontHandler)              // Font files (basic)
         registerHandler(tikaHandler)              // Universal fallback
+
+        // Register enhanced media handlers (highest priority for media)
+        registerHandler(fontBoxEnhancedHandler)   // Font with Bootstrap char grid
+        registerHandler(imageMetadataHandler)     // EXIF/IPTC/XMP extraction
+        registerHandler(ffmpegMediaHandler)       // Audio/video with FFmpeg
 
         // Register XHTML base handler (Tika-based, common output format)
         registerHandler(xhtmlHandler)             // Universal XHTML converter

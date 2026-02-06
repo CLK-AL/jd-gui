@@ -116,6 +116,12 @@ dependencies {
     implementation("org.apache.tika:tika-core:2.9.1")
     implementation("org.apache.tika:tika-parsers-standard-package:2.9.1")
 
+    // Image metadata extraction (EXIF, IPTC, XMP)
+    implementation("com.drewnoakes:metadata-extractor:2.19.0")
+
+    // FFmpeg wrapper for audio/video processing
+    implementation("ws.schild:jave-all-deps:3.5.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
