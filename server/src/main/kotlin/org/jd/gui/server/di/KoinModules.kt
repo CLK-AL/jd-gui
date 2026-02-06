@@ -16,6 +16,7 @@ import org.jd.gui.server.handlers.*
 import org.jd.gui.server.pipeline.pipelineModule
 import org.jd.gui.server.treenode.treeNodeModule
 import org.jd.gui.server.syntax.syntaxModule
+import org.jd.gui.server.schema.schemaModule
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
@@ -214,6 +215,7 @@ fun allServerModules(environment: ApplicationEnvironment): List<Module> = listOf
     fileExtensionHandlersModule,
     treeNodeModule,   // TreeNodeFactory registry (reused from Java legacy SPI)
     syntaxModule,     // Generic ANTLR TokenMaker with language-specific extensions
+    schemaModule,     // Schema registry with validators and inferrers (JSON Schema, XSD, OpenAPI, etc.)
     pipelineModule    // Staged LOD pipeline (Camel routes, SSE/WebSocket)
 )
 
