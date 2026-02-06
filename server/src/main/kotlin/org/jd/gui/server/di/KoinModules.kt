@@ -15,6 +15,7 @@ import org.jd.gui.server.xmpp.OpenfireOrgManager
 import org.jd.gui.server.handlers.*
 import org.jd.gui.server.pipeline.pipelineModule
 import org.jd.gui.server.treenode.treeNodeModule
+import org.jd.gui.server.syntax.syntaxModule
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
@@ -212,6 +213,7 @@ fun allServerModules(environment: ApplicationEnvironment): List<Module> = listOf
     mimeTypeHandlersModule,
     fileExtensionHandlersModule,
     treeNodeModule,   // TreeNodeFactory registry (reused from Java legacy SPI)
+    syntaxModule,     // Generic ANTLR TokenMaker with language-specific extensions
     pipelineModule    // Staged LOD pipeline (Camel routes, SSE/WebSocket)
 )
 
