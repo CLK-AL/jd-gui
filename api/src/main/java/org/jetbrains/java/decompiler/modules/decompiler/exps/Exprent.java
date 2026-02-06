@@ -50,6 +50,14 @@ public abstract class Exprent
 
 	protected static ThreadLocal<Map<String, VarType>> inferredLambdaTypes = ThreadLocal.withInitial(HashMap::new);
 
+	/**
+	 * Cleans up the inferredLambdaTypes ThreadLocal to prevent memory leaks.
+	 * This should be called after method decompilation is complete.
+	 */
+	public static void cleanupInferredLambdaTypes() {
+		inferredLambdaTypes.remove();
+	}
+
 	public final int    type;
 	public final int    id;
 	public       BitSet bytecode = null;  // offsets of bytecode instructions decompiled to this exprent

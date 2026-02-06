@@ -66,6 +66,14 @@ public class DecompilerContext {
 		currentContext.set(context);
 	}
 
+	/**
+	 * Removes the current context from the ThreadLocal to prevent memory leaks.
+	 * This should be called in a finally block after decompilation is complete.
+	 */
+	public static void removeCurrentContext() {
+		currentContext.remove();
+	}
+
 	public static void setProperty(String key,
 	                               Object value) {
 		getCurrentContext().properties.put(key,
