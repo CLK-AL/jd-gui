@@ -14,6 +14,7 @@ import org.jd.gui.server.sync.VCardSyncManager
 import org.jd.gui.server.xmpp.OpenfireOrgManager
 import org.jd.gui.server.handlers.*
 import org.jd.gui.server.pipeline.pipelineModule
+import org.jd.gui.server.treenode.treeNodeModule
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
@@ -210,7 +211,8 @@ fun allServerModules(environment: ApplicationEnvironment): List<Module> = listOf
     diagramServicesModule,
     mimeTypeHandlersModule,
     fileExtensionHandlersModule,
-    pipelineModule  // Staged LOD pipeline (Camel routes, SSE/WebSocket)
+    treeNodeModule,   // TreeNodeFactory registry (reused from Java legacy SPI)
+    pipelineModule    // Staged LOD pipeline (Camel routes, SSE/WebSocket)
 )
 
 /**

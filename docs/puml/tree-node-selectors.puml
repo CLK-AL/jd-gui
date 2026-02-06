@@ -290,6 +290,50 @@ note as MatchingAlgorithm
 end note
 
 ' ========================================
+' Kotlin Server Implementation
+' ========================================
+package "Kotlin Server (Reusing Pattern)" #E8EAF6 {
+    interface "TreeNodeFactory (Kotlin)" as KotlinTreeNodeFactory <<interface>> {
+        +factoryId: String
+        +displayName: String
+        +getSelectors(): Array<String>
+        +getPathPattern(): Pattern?
+        +priority: Int
+        +make(entry, content): TreeNodeResult
+    }
+    note right of KotlinTreeNodeFactory
+        **Location:**
+        server/src/main/kotlin/
+        org/jd/gui/server/treenode/
+
+        **Same selector pattern:**
+        {containerType}:{fileOrDir}:{pathPattern}
+    end note
+
+    class TreeNodeFactoryRegistry {
+        +register(factory)
+        +get(entry): TreeNodeFactory?
+        -matchSelector(selector, path)
+    }
+    note right of TreeNodeFactoryRegistry
+        Same matching algorithm
+        as Java TreeNodeFactoryService
+    end note
+
+    class HandlerAdapterFactory {
+        +adapts FileExtensionHandler
+        +auto-generates selectors
+    }
+    note right of HandlerAdapterFactory
+        Bridges existing handlers
+        to TreeNodeFactory pattern
+    end note
+
+    KotlinTreeNodeFactory <|.. HandlerAdapterFactory
+    TreeNodeFactoryRegistry o-- KotlinTreeNodeFactory
+}
+
+' ========================================
 ' Legend
 ' ========================================
 legend right
@@ -303,14 +347,19 @@ legend right
     | <#DCEDC8> | Java Modules | 2 factories |
     | <#B2EBF2> | Metadata | 4 factories |
     | <#FCE4EC> | Media | 2 factories |
+    | <#E8EAF6> | Kotlin Server | Reuses pattern |
 
-    **Total: 32+ TreeNodeFactory implementations**
+    **Total: 32+ Java + 20+ Kotlin factories**
 
-    **Location:**
+    **Java Location:**
     services/src/main/java/
     org/jd/gui/service/treenode/
+
+    **Kotlin Location:**
+    server/src/main/kotlin/
+    org/jd/gui/server/treenode/
 endlegend
 
-footer JD-GUI Tree Node Factory Pattern | services/service/treenode/
+footer JD-GUI Tree Node Factory Pattern | Java SPI + Kotlin Adaptation
 
 @enduml
