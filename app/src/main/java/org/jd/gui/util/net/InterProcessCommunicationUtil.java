@@ -10,6 +10,7 @@ package org.jd.gui.util.net;
 import org.jd.gui.util.exception.ExceptionUtil;
 
 import java.io.IOException;
+import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
@@ -31,6 +32,14 @@ public class InterProcessCommunicationUtil {
 				while (true) {
 					try (Socket socket = listener.accept();
 					     ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
+						// Security: Filter deserialization to only allow String[] to prevent RCE attacks
+						ois.setObjectInputFilter(info -> {
+							if (info.serialClass() == null) return ObjectInputFilter.Status.UNDECIDED;
+							if (info.serialClass() == String[].class || info.serialClass() == String.class) {
+								return ObjectInputFilter.Status.ALLOWED;
+							}
+							return ObjectInputFilter.Status.REJECTED;
+						});
 						// Receive args from another JD-GUI instance
 						String[] args = (String[]) ois.readObject();
 						consumer.accept(args);
