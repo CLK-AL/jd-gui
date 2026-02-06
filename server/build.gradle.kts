@@ -87,6 +87,12 @@ dependencies {
     // PlantUML for diagram generation
     implementation("net.sourceforge.plantuml:plantuml:1.2024.0")
 
+    // Apache Batik for SVG rendering and viewing
+    implementation("org.apache.xmlgraphics:batik-transcoder:1.17")
+    implementation("org.apache.xmlgraphics:batik-swing:1.17")
+    implementation("org.apache.xmlgraphics:batik-codec:1.17")
+    implementation("org.apache.xmlgraphics:batik-svggen:1.17")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 

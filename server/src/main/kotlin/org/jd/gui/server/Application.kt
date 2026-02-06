@@ -31,6 +31,7 @@ import org.jd.gui.server.sync.configureSyncRoutes
 import org.jd.gui.server.sync.VCardSyncManager
 import org.jd.gui.server.xmpp.OpenfireOrgManager
 import org.jd.gui.server.puml.configurePlantUmlRoutes
+import org.jd.gui.server.svg.configureSvgRoutes
 
 private val logger = KotlinLogging.logger {}
 
@@ -178,6 +179,9 @@ fun Application.module() {
 
         // PlantUML diagram generation routes
         configurePlantUmlRoutes()
+
+        // Batik SVG viewer and conversion routes
+        configureSvgRoutes()
     }
 
     // Register shutdown hook
