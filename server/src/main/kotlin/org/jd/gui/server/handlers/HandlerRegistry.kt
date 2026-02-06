@@ -23,6 +23,7 @@ class HandlerRegistry : KoinComponent {
     private val handlersByExtension = mutableMapOf<String, MutableList<FileExtensionHandler>>()
 
     // Inject all handlers from Koin
+    // Core language handlers
     private val javaHandler: JavaHandler by inject()
     private val kotlinHandler: KotlinHandler by inject()
     private val typeScriptHandler: TypeScriptHandler by inject()
@@ -34,6 +35,41 @@ class HandlerRegistry : KoinComponent {
     private val csharpHandler: CSharpHandler by inject()
     private val swiftHandler: SwiftHandler by inject()
 
+    // Scripting language handlers
+    private val phpHandler: PhpHandler by inject()
+    private val rubyHandler: RubyHandler by inject()
+    private val perlHandler: PerlHandler by inject()
+    private val luaHandler: LuaHandler by inject()
+    private val scalaHandler: ScalaHandler by inject()
+    private val groovyHandler: GroovyHandler by inject()
+
+    // Modern language handlers
+    private val dartHandler: DartHandler by inject()
+    private val elixirHandler: ElixirHandler by inject()
+    private val haskellHandler: HaskellHandler by inject()
+    private val objectiveCHandler: ObjectiveCHandler by inject()
+
+    // Specialized language handlers
+    private val solidityHandler: SolidityHandler by inject()
+    private val graphqlHandler: GraphQLHandler by inject()
+    private val protobufHandler: ProtobufHandler by inject()
+    private val terraformHandler: TerraformHandler by inject()
+
+    // Legacy language handlers
+    private val cobolHandler: CobolHandler by inject()
+    private val fortranHandler: FortranHandler by inject()
+    private val adaHandler: AdaHandler by inject()
+    private val zigHandler: ZigHandler by inject()
+
+    // Hardware description language handlers
+    private val verilogHandler: VerilogHandler by inject()
+    private val vhdlHandler: VhdlHandler by inject()
+
+    // Functional language handlers
+    private val clojureHandler: ClojureHandler by inject()
+    private val erlangHandler: ErlangHandler by inject()
+
+    // Data format handlers
     private val jsonHandler: JsonHandler by inject()
     private val xmlHandler: XmlHandler by inject()
     private val yamlHandler: YamlHandler by inject()
@@ -44,6 +80,7 @@ class HandlerRegistry : KoinComponent {
     private val htmlHandler: HtmlHandler by inject()
     private val cssHandler: CssHandler by inject()
 
+    // Image handlers
     private val pngHandler: PngHandler by inject()
     private val jpegHandler: JpegHandler by inject()
     private val gifHandler: GifHandler by inject()
@@ -53,7 +90,7 @@ class HandlerRegistry : KoinComponent {
     private val icoHandler: IcoHandler by inject()
 
     init {
-        // Register all handlers
+        // Register core language handlers
         registerHandler(javaHandler)
         registerHandler(kotlinHandler)
         registerHandler(typeScriptHandler)
@@ -65,6 +102,41 @@ class HandlerRegistry : KoinComponent {
         registerHandler(csharpHandler)
         registerHandler(swiftHandler)
 
+        // Register scripting language handlers
+        registerHandler(phpHandler)
+        registerHandler(rubyHandler)
+        registerHandler(perlHandler)
+        registerHandler(luaHandler)
+        registerHandler(scalaHandler)
+        registerHandler(groovyHandler)
+
+        // Register modern language handlers
+        registerHandler(dartHandler)
+        registerHandler(elixirHandler)
+        registerHandler(haskellHandler)
+        registerHandler(objectiveCHandler)
+
+        // Register specialized language handlers
+        registerHandler(solidityHandler)
+        registerHandler(graphqlHandler)
+        registerHandler(protobufHandler)
+        registerHandler(terraformHandler)
+
+        // Register legacy language handlers
+        registerHandler(cobolHandler)
+        registerHandler(fortranHandler)
+        registerHandler(adaHandler)
+        registerHandler(zigHandler)
+
+        // Register hardware description language handlers
+        registerHandler(verilogHandler)
+        registerHandler(vhdlHandler)
+
+        // Register functional language handlers
+        registerHandler(clojureHandler)
+        registerHandler(erlangHandler)
+
+        // Register data format handlers
         registerHandler(jsonHandler)
         registerHandler(xmlHandler)
         registerHandler(yamlHandler)
@@ -75,6 +147,7 @@ class HandlerRegistry : KoinComponent {
         registerHandler(htmlHandler)
         registerHandler(cssHandler)
 
+        // Register image handlers
         registerHandler(pngHandler)
         registerHandler(jpegHandler)
         registerHandler(gifHandler)

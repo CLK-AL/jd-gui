@@ -110,7 +110,7 @@ val mimeTypeHandlersModule = module {
  * File extension handlers module - one service per file type
  */
 val fileExtensionHandlersModule = module {
-    // Source code handlers
+    // Source code handlers (core languages)
     single { JavaHandler() }
     single { KotlinHandler() }
     single { TypeScriptHandler() }
@@ -121,6 +121,40 @@ val fileExtensionHandlersModule = module {
     single { CppHandler() }
     single { CSharpHandler() }
     single { SwiftHandler() }
+
+    // Scripting language handlers
+    single { PhpHandler() }
+    single { RubyHandler() }
+    single { PerlHandler() }
+    single { LuaHandler() }
+    single { ScalaHandler() }
+    single { GroovyHandler() }
+
+    // Modern language handlers
+    single { DartHandler() }
+    single { ElixirHandler() }
+    single { HaskellHandler() }
+    single { ObjectiveCHandler() }
+
+    // Specialized language handlers
+    single { SolidityHandler() }
+    single { GraphQLHandler() }
+    single { ProtobufHandler() }
+    single { TerraformHandler() }
+
+    // Legacy language handlers
+    single { CobolHandler() }
+    single { FortranHandler() }
+    single { AdaHandler() }
+    single { ZigHandler() }
+
+    // Hardware description language handlers
+    single { VerilogHandler() }
+    single { VhdlHandler() }
+
+    // Functional language handlers
+    single { ClojureHandler() }
+    single { ErlangHandler() }
 
     // Data format handlers
     single { JsonHandler() }
