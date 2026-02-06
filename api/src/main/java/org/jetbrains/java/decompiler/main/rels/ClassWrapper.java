@@ -90,17 +90,11 @@ public class ClassWrapper {
 
 						mtThread.start();
 
-						while (!mtProc.isFinished()) {
-							try {
-								synchronized (mtProc.lock) {
-									mtProc.lock.wait(200);
-								}
-							} catch (InterruptedException e) {
-								killThread(mtThread);
-								throw e;
-							}
+						try {
+							long remainingTime = stopAt - System.currentTimeMillis();
+							boolean completed = mtProc.awaitCompletion(remainingTime > 0 ? remainingTime : 0);
 
-							if (System.currentTimeMillis() >= stopAt) {
+							if (!completed) {
 								String message = "Processing time limit exceeded for method "
 								                 + mt.getName()
 								                 + ", execution interrupted.";
@@ -109,8 +103,10 @@ public class ClassWrapper {
 								                               IFernflowerLogger.Severity.ERROR);
 								killThread(mtThread);
 								error = new TimeoutException();
-								break;
 							}
+						} catch (InterruptedException e) {
+							killThread(mtThread);
+							throw e;
 						}
 
 						if (error == null) {
