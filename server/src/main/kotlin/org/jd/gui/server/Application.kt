@@ -30,6 +30,7 @@ import org.jd.gui.server.webdav.configureWebDav
 import org.jd.gui.server.sync.configureSyncRoutes
 import org.jd.gui.server.sync.VCardSyncManager
 import org.jd.gui.server.xmpp.OpenfireOrgManager
+import org.jd.gui.server.puml.configurePlantUmlRoutes
 
 private val logger = KotlinLogging.logger {}
 
@@ -174,6 +175,9 @@ fun Application.module() {
 
         // Yjs sync routes
         configureSyncRoutes(config.sync)
+
+        // PlantUML diagram generation routes
+        configurePlantUmlRoutes()
     }
 
     // Register shutdown hook

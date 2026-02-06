@@ -80,6 +80,13 @@ dependencies {
     implementation("org.mapstruct:mapstruct:1.5.5.Final")
     kapt("org.mapstruct:mapstruct-processor:1.5.5.Final")
 
+    // ANTLR for parsing
+    implementation("org.antlr:antlr4-runtime:4.13.1")
+    implementation("org.antlr:antlr4:4.13.1")
+
+    // PlantUML for diagram generation
+    implementation("net.sourceforge.plantuml:plantuml:1.2024.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
