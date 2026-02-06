@@ -22,17 +22,9 @@ public final class ClasspathHelper {
 		String methodSignature = buildMethodSignature(targetClass + '.' + methodName,
 		                                              descriptor);
 
-		Method method;
-		if (METHOD_CACHE.containsKey(methodSignature)) {
-			method = METHOD_CACHE.get(methodSignature);
-		} else {
-			method = findMethodOnClasspath(targetClass,
-			                               methodSignature);
-			METHOD_CACHE.put(methodSignature,
-			                 method);
-		}
-
-		return method;
+		return METHOD_CACHE.computeIfAbsent(methodSignature,
+		                                     k -> findMethodOnClasspath(targetClass,
+		                                                                methodSignature));
 	}
 
 	private static Method findMethodOnClasspath(String targetClass,
