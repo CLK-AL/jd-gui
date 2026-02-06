@@ -210,15 +210,24 @@ class SchemaValidationService(
 /**
  * Extension to generate protobuf from Kotlin source directly.
  *
+ * Auto-generates @ProtoNumber annotations if not present.
+ * Supports recursive/nested types.
+ *
  * Usage:
  * ```
  * val kotlinSource = """
  *     @Serializable
  *     data class User(
- *         @ProtoNumber(1) val id: Long,
- *         @ProtoNumber(2) val name: String,
- *         @ProtoNumber(3) val email: String?,
- *         @ProtoNumber(4) val roles: List<String> = emptyList()
+ *         val id: Long,           // Auto @ProtoNumber(1)
+ *         val name: String,       // Auto @ProtoNumber(2)
+ *         val email: String?,     // Auto @ProtoNumber(3)
+ *         val roles: List<String> // Auto @ProtoNumber(4)
+ *     )
+ *
+ *     // Recursive type example
+ *     data class TreeNode(
+ *         val value: String,
+ *         val children: List<TreeNode> = emptyList()  // Self-reference
  *     )
  * """
  * val proto = kotlinSource.toProtobuf(packageName = "com.example")
@@ -229,4 +238,67 @@ fun String.toProtobuf(packageName: String? = null): String? {
     if (!inferrer.canInfer(this)) return null
     val inferred = inferrer.infer(this)
     return inferrer.toProtobuf(inferred.types, packageName)
+}
+
+/**
+ * Result of Kotlin to Protobuf conversion including build configs.
+ */
+data class ProtobufGenerationResult(
+    val protoFile: String,
+    val gradleConfig: String,
+    val wireConfig: String,
+    val kotlinxConfig: String,
+    val kotlinSourceWithAnnotations: String
+)
+
+/**
+ * Generate complete protobuf setup from Kotlin source.
+ *
+ * Returns proto file, build configs, and annotated Kotlin source.
+ *
+ * Usage:
+ * ```
+ * val result = kotlinSource.toProtobufProject("com.example")
+ * // Write result.protoFile to src/main/proto/schema.proto
+ * // Merge result.gradleConfig into build.gradle.kts
+ * // Or use result.kotlinxConfig for serialization-only approach
+ * ```
+ */
+fun String.toProtobufProject(packageName: String): ProtobufGenerationResult? {
+    val inferrer = KotlinSchemaInferrer()
+    if (!inferrer.canInfer(this)) return null
+
+    val inferred = inferrer.infer(this)
+
+    return ProtobufGenerationResult(
+        protoFile = inferrer.toProtobuf(inferred.types, packageName),
+        gradleConfig = inferrer.generateGradleConfig(packageName),
+        wireConfig = inferrer.generateWireConfig(packageName),
+        kotlinxConfig = inferrer.generateKotlinxConfig(),
+        kotlinSourceWithAnnotations = inferred.schema
+    )
+}
+
+/**
+ * Build tool type for protobuf generation.
+ */
+enum class ProtobufBuildTool {
+    /** Google protobuf-gradle-plugin with grpc-kotlin */
+    GRADLE_PROTOBUF,
+    /** Square Wire - Kotlin-first protobuf */
+    WIRE,
+    /** kotlinx-serialization-protobuf - No codegen, annotation-based */
+    KOTLINX_SERIALIZATION
+}
+
+/**
+ * Get build configuration for specific tool.
+ */
+fun getProtobufBuildConfig(tool: ProtobufBuildTool, packageName: String): String {
+    val inferrer = KotlinSchemaInferrer()
+    return when (tool) {
+        ProtobufBuildTool.GRADLE_PROTOBUF -> inferrer.generateGradleConfig(packageName)
+        ProtobufBuildTool.WIRE -> inferrer.generateWireConfig(packageName)
+        ProtobufBuildTool.KOTLINX_SERIALIZATION -> inferrer.generateKotlinxConfig()
+    }
 }

@@ -245,18 +245,27 @@ class TypeScriptSchemaInferrer : SchemaInferrer {
  * Kotlin schema inferrer from Kotlin data classes.
  *
  * Extracts:
- * - Data class definitions
+ * - Data class definitions (including nested)
  * - Sealed class hierarchies
  * - @Serializable annotations
+ * - Recursive type references
  *
  * Supports kotlinx-serialization-protobuf annotations:
- * - @ProtoNumber for field numbers
+ * - @ProtoNumber for field numbers (auto-generated if missing)
  * - @ProtoPacked for packed repeated fields
  * - @ProtoType for type overrides
+ *
+ * Build tool integrations:
+ * - Gradle protobuf plugin
+ * - Wire (Square)
+ * - kotlinx-serialization-protobuf
  */
 class KotlinSchemaInferrer : SchemaInferrer {
 
     override val format = SchemaFormat.KOTLIN_SERIAL
+
+    // Track known types for recursive reference detection
+    private val knownTypes = mutableSetOf<String>()
 
     override fun canInfer(source: String): Boolean {
         return source.contains("data class ") ||
@@ -265,14 +274,42 @@ class KotlinSchemaInferrer : SchemaInferrer {
     }
 
     override fun infer(source: String): InferredSchema {
+        knownTypes.clear()
         val types = mutableListOf<InferredType>()
 
-        // Extract data classes
+        // First pass: collect all type names for recursive reference detection
+        val typeNameRegex = Regex("""(data|sealed|enum)\s+class\s+(\w+)""")
+        typeNameRegex.findAll(source).forEach { match ->
+            knownTypes.add(match.groupValues[2])
+        }
+
+        // Extract nested classes (classes defined inside other classes)
+        val nestedClassRegex = Regex(
+            """(data|sealed)\s+class\s+(\w+)(?:<[^>]+>)?\s*(?:\([^)]*\))?\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}""",
+            RegexOption.DOT_MATCHES_ALL
+        )
+        nestedClassRegex.findAll(source).forEach { match ->
+            val outerName = match.groupValues[2]
+            val body = match.groupValues[3]
+            // Find nested data classes in body
+            val innerDataClassRegex = Regex("""data\s+class\s+(\w+)(?:<[^>]+>)?\s*\(([^)]+)\)""")
+            innerDataClassRegex.findAll(body).forEach { innerMatch ->
+                val innerName = innerMatch.groupValues[1]
+                val params = innerMatch.groupValues[2]
+                knownTypes.add("$outerName.$innerName")
+                types.add(parseDataClass("${outerName}_$innerName", params, outerName))
+            }
+        }
+
+        // Extract top-level data classes
         val dataClassRegex = Regex("""data\s+class\s+(\w+)(?:<[^>]+>)?\s*\(([^)]+)\)""")
         dataClassRegex.findAll(source).forEach { match ->
             val name = match.groupValues[1]
             val params = match.groupValues[2]
-            types.add(parseDataClass(name, params))
+            // Skip if already added as nested
+            if (types.none { it.name == name }) {
+                types.add(parseDataClass(name, params))
+            }
         }
 
         // Extract sealed classes (for oneof in proto)
@@ -309,33 +346,57 @@ class KotlinSchemaInferrer : SchemaInferrer {
         )
     }
 
-    private fun parseDataClass(name: String, params: String): InferredType {
+    private fun parseDataClass(name: String, params: String, parentClass: String? = null): InferredType {
         val properties = mutableListOf<InferredProperty>()
         // Match properties with optional @ProtoNumber annotation
         val paramRegex = Regex("""(?:@ProtoNumber\((\d+)\)\s*)?(val|var)\s+(\w+):\s*([^,=]+)(?:\s*=\s*([^,]+))?""")
 
+        var autoFieldNumber = 1
         paramRegex.findAll(params).forEach { match ->
-            val protoNumber = match.groupValues[1].takeIf { it.isNotEmpty() }
+            val explicitProtoNumber = match.groupValues[1].takeIf { it.isNotEmpty() }
             val propName = match.groupValues[3]
             val propType = match.groupValues[4].trim()
             val defaultValue = match.groupValues[5].takeIf { it.isNotEmpty() }?.trim()
 
+            // Auto-generate @ProtoNumber if not present
+            val fieldNumber = explicitProtoNumber?.toIntOrNull() ?: autoFieldNumber++
+
             val annotations = mutableListOf<String>()
-            if (protoNumber != null) {
-                annotations.add("@ProtoNumber($protoNumber)")
-            }
+            annotations.add("@ProtoNumber($fieldNumber)")
+
+            // Detect recursive types
+            val isRecursive = isRecursiveType(propType, name)
 
             properties.add(InferredProperty(
                 name = propName,
                 type = propType,
                 nullable = propType.endsWith("?"),
-                optional = defaultValue != null,
+                optional = defaultValue != null || isRecursive,  // Recursive fields should be optional
                 defaultValue = defaultValue,
                 annotations = annotations
             ))
         }
 
-        return InferredType(name = name, kind = TypeKind.CLASS, properties = properties)
+        return InferredType(
+            name = name,
+            kind = TypeKind.CLASS,
+            properties = properties,
+            annotations = parentClass?.let { listOf("nested:$it") } ?: emptyList()
+        )
+    }
+
+    /**
+     * Check if type references the containing class (recursive)
+     */
+    private fun isRecursiveType(propType: String, className: String): Boolean {
+        val baseType = propType.removeSuffix("?").trim()
+        // Direct reference
+        if (baseType == className) return true
+        // List/Set of self
+        if (baseType.contains("<$className>")) return true
+        // Nested generic
+        if (baseType.contains(className)) return true
+        return false
     }
 
     private fun generateKotlinSchema(types: List<InferredType>): String {
@@ -364,6 +425,11 @@ class KotlinSchemaInferrer : SchemaInferrer {
                     else -> {
                         appendLine("data class ${type.name}(")
                         type.properties.forEachIndexed { i, prop ->
+                            // Add @ProtoNumber annotation
+                            val protoNum = prop.annotations.find { it.startsWith("@ProtoNumber") }
+                            if (protoNum != null) {
+                                appendLine("    $protoNum")
+                            }
                             val nullMark = if (prop.nullable && !prop.type.endsWith("?")) "?" else ""
                             val default = prop.defaultValue?.let { " = $it" } ?: ""
                             append("    val ${prop.name}: ${prop.type}$nullMark$default")
@@ -392,8 +458,12 @@ class KotlinSchemaInferrer : SchemaInferrer {
      * - List<T> -> repeated T
      * - Map<K, V> -> map<K, V>
      * - nullable types -> optional fields (proto3)
+     * - recursive types -> self-referencing messages
      */
     fun toProtobuf(types: List<InferredType>, packageName: String? = null): String {
+        // Build type registry for cross-references
+        val typeRegistry = types.associate { it.name to it }
+
         return buildString {
             appendLine("syntax = \"proto3\";")
             appendLine()
@@ -402,23 +472,39 @@ class KotlinSchemaInferrer : SchemaInferrer {
                 appendLine()
             }
 
+            // Add imports for well-known types if needed
+            val needsTimestamp = types.any { type ->
+                type.properties.any { it.type.contains("Instant") }
+            }
+            val needsDuration = types.any { type ->
+                type.properties.any { it.type.contains("Duration") }
+            }
+            val needsAny = types.any { type ->
+                type.properties.any { it.type.contains("Any") && !it.type.contains("?") }
+            }
+
+            if (needsTimestamp) appendLine("import \"google/protobuf/timestamp.proto\";")
+            if (needsDuration) appendLine("import \"google/protobuf/duration.proto\";")
+            if (needsAny) appendLine("import \"google/protobuf/any.proto\";")
+            if (needsTimestamp || needsDuration || needsAny) appendLine()
+
             types.forEach { type ->
                 when (type.kind) {
                     TypeKind.ENUM -> generateProtoEnum(this, type)
                     TypeKind.UNION -> generateProtoOneof(this, type, types)
-                    else -> generateProtoMessage(this, type)
+                    else -> generateProtoMessage(this, type, typeRegistry)
                 }
                 appendLine()
             }
         }
     }
 
-    private fun generateProtoMessage(sb: StringBuilder, type: InferredType) {
+    private fun generateProtoMessage(sb: StringBuilder, type: InferredType, typeRegistry: Map<String, InferredType>) {
         sb.appendLine("message ${type.name} {")
         type.properties.forEachIndexed { index, prop ->
-            val protoType = kotlinToProtoType(prop.type)
+            val protoType = kotlinToProtoType(prop.type, typeRegistry)
             val fieldNumber = extractProtoNumber(prop) ?: (index + 1)
-            val optional = if (prop.nullable) "optional " else ""
+            val optional = if (prop.nullable || isRecursiveType(prop.type, type.name)) "optional " else ""
             sb.appendLine("  $optional$protoType ${toSnakeCase(prop.name)} = $fieldNumber;")
         }
         sb.appendLine("}")
@@ -451,26 +537,31 @@ class KotlinSchemaInferrer : SchemaInferrer {
         return annotation?.substringAfter("(")?.substringBefore(")")?.toIntOrNull()
     }
 
-    private fun kotlinToProtoType(kotlinType: String): String {
+    private fun kotlinToProtoType(kotlinType: String, typeRegistry: Map<String, InferredType> = emptyMap()): String {
         val baseType = kotlinType.removeSuffix("?").trim()
 
         // Handle collections
         if (baseType.startsWith("List<") || baseType.startsWith("MutableList<")) {
             val innerType = baseType.substringAfter("<").substringBeforeLast(">")
-            return "repeated ${kotlinToProtoType(innerType)}"
+            return "repeated ${kotlinToProtoType(innerType, typeRegistry)}"
         }
 
         if (baseType.startsWith("Set<") || baseType.startsWith("MutableSet<")) {
             val innerType = baseType.substringAfter("<").substringBeforeLast(">")
-            return "repeated ${kotlinToProtoType(innerType)}"
+            return "repeated ${kotlinToProtoType(innerType, typeRegistry)}"
         }
 
         if (baseType.startsWith("Map<") || baseType.startsWith("MutableMap<")) {
             val inner = baseType.substringAfter("<").substringBeforeLast(">")
             val parts = inner.split(",").map { it.trim() }
             if (parts.size == 2) {
-                return "map<${kotlinToProtoType(parts[0])}, ${kotlinToProtoType(parts[1])}>"
+                return "map<${kotlinToProtoType(parts[0], typeRegistry)}, ${kotlinToProtoType(parts[1], typeRegistry)}>"
             }
+        }
+
+        // Check if it's a known custom type (recursive reference)
+        if (typeRegistry.containsKey(baseType)) {
+            return baseType
         }
 
         // kotlinx-serialization-protobuf type mappings
@@ -505,6 +596,83 @@ class KotlinSchemaInferrer : SchemaInferrer {
     private fun toScreamingSnakeCase(name: String): String {
         return toSnakeCase(name).uppercase()
     }
+
+    /**
+     * Generate Gradle build configuration for protobuf plugin.
+     */
+    fun generateGradleConfig(packageName: String): String = """
+        |plugins {
+        |    id("com.google.protobuf") version "0.9.4"
+        |}
+        |
+        |dependencies {
+        |    implementation("com.google.protobuf:protobuf-kotlin:3.25.1")
+        |    implementation("io.grpc:grpc-kotlin-stub:1.4.1")
+        |}
+        |
+        |protobuf {
+        |    protoc {
+        |        artifact = "com.google.protobuf:protoc:3.25.1"
+        |    }
+        |    plugins {
+        |        create("grpc") {
+        |            artifact = "io.grpc:protoc-gen-grpc-java:1.60.0"
+        |        }
+        |        create("grpckt") {
+        |            artifact = "io.grpc:protoc-gen-grpc-kotlin:1.4.1:jdk8@jar"
+        |        }
+        |    }
+        |    generateProtoTasks {
+        |        all().forEach {
+        |            it.plugins {
+        |                create("grpc")
+        |                create("grpckt")
+        |            }
+        |            it.builtins {
+        |                create("kotlin")
+        |            }
+        |        }
+        |    }
+        |}
+    """.trimMargin()
+
+    /**
+     * Generate Wire (Square) build configuration.
+     */
+    fun generateWireConfig(packageName: String): String = """
+        |plugins {
+        |    id("com.squareup.wire") version "4.9.3"
+        |}
+        |
+        |wire {
+        |    kotlin {
+        |        out = "${'$'}buildDir/generated/source/wire"
+        |        rpcRole = "client"
+        |        rpcCallStyle = "suspending"
+        |        singleMethodServices = true
+        |    }
+        |    sourcePath {
+        |        srcDir("src/main/proto")
+        |    }
+        |}
+    """.trimMargin()
+
+    /**
+     * Generate kotlinx-serialization-protobuf configuration.
+     */
+    fun generateKotlinxConfig(): String = """
+        |plugins {
+        |    kotlin("plugin.serialization") version "1.9.22"
+        |}
+        |
+        |dependencies {
+        |    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.6.2")
+        |}
+        |
+        |// Usage:
+        |// val bytes = ProtoBuf.encodeToByteArray(data)
+        |// val decoded = ProtoBuf.decodeFromByteArray<MyType>(bytes)
+    """.trimMargin()
 }
 
 /**
