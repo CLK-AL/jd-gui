@@ -577,7 +577,13 @@ public class ControlFlowGraph
 							break;
 						case CodeConstants.opc_ret:
 							BasicBlock enter = jsrstack.getLast();
-							BasicBlock exit = blocks.getWithKey(enter.id + 1); // FIXME: find successor in a better way
+							// Find the fallthrough successor (return point) from the JSR block's successors.
+							// For a JSR block, successor at index 0 is the subroutine entry (jump target),
+							// and successor at index 1 is the fallthrough block (return address).
+							// This is more robust than assuming the exit block has ID = enter.id + 1,
+							// since block IDs may not always be sequential.
+							List<BasicBlock> enterSuccs = enter.getSuccs();
+							BasicBlock exit = enterSuccs.size() > 1 ? enterSuccs.get(1) : null;
 
 							if (exit != null) {
 								if (!node.isSuccessor(exit)) {
@@ -629,22 +635,13 @@ public class ControlFlowGraph
 			                            ret));
 		}
 
-		// sort ranges
-		// FIXME: better sort order
-		List<JsrRecord> lstJsr = new ArrayList<>();
-		for (JsrRecord arr : lstJsrAll) {
-			int i = 0;
-			for (;
-			     i < lstJsr.size();
-			     i++) {
-				JsrRecord arrJsr = lstJsr.get(i);
-				if (arrJsr.range.contains(arr.jsr)) {
-					break;
-				}
-			}
-			lstJsr.add(i,
-			           arr);
-		}
+		// Sort ranges by size ascending so that inner (smaller) subroutines are processed
+		// before outer (larger) ones. This ensures proper handling of nested subroutines
+		// because when we split ranges for an outer subroutine, any inner subroutines
+		// it contains have already been processed. Using range size is more robust than
+		// the previous insertion-based approach which could fail with complex nesting.
+		List<JsrRecord> lstJsr = new ArrayList<>(lstJsrAll);
+		lstJsr.sort(Comparator.comparingInt(record -> record.range.size()));
 
 		// find the first intersection
 		for (int i = 0;
