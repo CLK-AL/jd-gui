@@ -1,0 +1,6 @@
+al.clk.gui.service.preferencespanel.DirectoryIndexerPreferencesProvider
+al.clk.gui.service.preferencespanel.ClassFileSaverPreferencesProvider
+al.clk.gui.service.preferencespanel.ClassFileDecompilerPreferencesProvider
+al.clk.gui.service.preferencespanel.ViewerPreferencesProvider
+al.clk.gui.service.preferencespanel.MavenOrgSourceLoaderPreferencesProvider
+al.clk.gui.service.preferencespanel.VineflowerFileSaverPreferencesProvider

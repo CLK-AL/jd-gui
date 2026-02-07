@@ -1,0 +1,9 @@
+[Desktop Entry]
+Comment=Java Decompiler gui
+Terminal=false
+Name=gui
+Exec=java -jar /opt/gui/gui.jar
+Type=Application
+Icon=gui
+MimeType=application/java;application/java-vm;application/java-archive
+StartupWMClass=org-gui-App

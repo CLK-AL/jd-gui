@@ -1,4 +1,4 @@
-# JD-GUI Version Information
+# gui Version Information
 
 ## Language & Runtime Versions
 
@@ -57,7 +57,7 @@ The ANTLR grammar files support parsing Java code from Java 8 through Java 21:
 
 ## GraalVM Native Image
 
-JD-GUI can be compiled to native executables using GraalVM Native Image:
+gui can be compiled to native executables using GraalVM Native Image:
 
 ```bash
 # Build native image
@@ -65,8 +65,8 @@ native-image \
   --no-fallback \
   --enable-preview \
   -H:ConfigurationFileDirectories=src/graalvm/native-image \
-  -jar build/libs/jd-gui-2024.1.0.jar \
-  -o jd-gui-native
+  -jar build/libs/gui-2024.1.0.jar \
+  -o gui-native
 ```
 
 ### Platform-Specific Builds

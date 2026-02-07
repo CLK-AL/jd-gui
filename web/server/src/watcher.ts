@@ -1,5 +1,5 @@
 /**
- * JD-GUI File Watcher Service
+ * gui File Watcher Service
  *
  * Monitors directories for file changes and broadcasts updates
  * to connected clients via WebSocket.

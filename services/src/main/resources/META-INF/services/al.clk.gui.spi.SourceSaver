@@ -1,0 +1,5 @@
+al.clk.gui.service.sourcesaver.ClassFileSourceSaverProvider
+al.clk.gui.service.sourcesaver.DirectorySourceSaverProvider
+al.clk.gui.service.sourcesaver.FileSourceSaverProvider
+al.clk.gui.service.sourcesaver.PackageSourceSaverProvider
+al.clk.gui.service.sourcesaver.ZipFileSourceSaverProvider

@@ -1,12 +1,12 @@
 [
   {
-    "name": "org.jd.gui.App",
+    "name": "al.clk.gui.App",
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true,
     "allDeclaredFields": true
   },
   {
-    "name": "org.jd.gui.view.MainView",
+    "name": "al.clk.gui.view.MainView",
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true,
     "allDeclaredFields": true
@@ -64,12 +64,12 @@
     "allDeclaredMethods": true
   },
   {
-    "name": "org.jd.gui.util.parser.antlr4.JavaParser",
+    "name": "al.clk.gui.util.parser.antlr4.JavaParser",
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },
   {
-    "name": "org.jd.gui.util.parser.antlr4.JavaLexer",
+    "name": "al.clk.gui.util.parser.antlr4.JavaLexer",
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
   },

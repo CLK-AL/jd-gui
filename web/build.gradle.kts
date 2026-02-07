@@ -3,7 +3,7 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-group = "org.jd.gui"
+group = "al.clk.gui"
 version = rootProject.version
 
 kotlin {
@@ -13,10 +13,10 @@ kotlin {
                 cssSupport {
                     enabled.set(true)
                 }
-                outputFileName = "jd-gui-web.js"
+                outputFileName = "gui-web.js"
             }
             webpackTask {
-                mainOutputFileName.set("jd-gui-web.js")
+                mainOutputFileName.set("gui-web.js")
             }
             binaries.executable()
         }
@@ -26,7 +26,7 @@ kotlin {
     wasmJs {
         browser {
             commonWebpackConfig {
-                outputFileName = "jd-gui-wasm.js"
+                outputFileName = "gui-wasm.js"
             }
             binaries.executable()
         }

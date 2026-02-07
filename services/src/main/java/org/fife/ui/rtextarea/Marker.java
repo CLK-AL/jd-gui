@@ -14,9 +14,9 @@ import java.util.List;
 /*
  * An utility class to call the restricted access methods of 'RTextArea'.
  *
- * JD-GUI uses two workarounds for RSyntaxTextArea:
+ * gui uses two workarounds for RSyntaxTextArea:
  * - org.fife.ui.rtextarea.Marker
- * - org.jd.gui.view.component.RoundMarkErrorStrip
+ * - al.clk.gui.view.component.RoundMarkErrorStrip
  */
 public class Marker {
 	public static void markAll(RTextArea textArea,

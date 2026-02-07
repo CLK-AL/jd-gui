@@ -4,9 +4,9 @@
 # JD
 debug*
 
-# JD-GUI
+# gui
 src-generated/
-jd-gui.cfg
+gui.cfg
 
 # Idea
 .idea/workspace.xml

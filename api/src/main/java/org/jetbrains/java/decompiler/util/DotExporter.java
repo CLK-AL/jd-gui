@@ -3,6 +3,8 @@ package org.jetbrains.java.decompiler.util;
 import org.jetbrains.java.decompiler.code.cfg.BasicBlock;
 import org.jetbrains.java.decompiler.code.cfg.ControlFlowGraph;
 import org.jetbrains.java.decompiler.code.cfg.ExceptionRangeCFG;
+import org.jetbrains.java.decompiler.main.DecompilerContext;
+import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
 import org.jetbrains.java.decompiler.main.rels.DecompileRecord;
 import org.jetbrains.java.decompiler.modules.decompiler.StatEdge;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.DirectGraph;
@@ -746,7 +748,7 @@ public class DotExporter {
 			                       vars).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write DOT file for direct graph", e);
 		}
 	}
 
@@ -775,7 +777,7 @@ public class DotExporter {
 			                    suffix).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write DOT file for statement", e);
 		}
 	}
 
@@ -792,7 +794,7 @@ public class DotExporter {
 			out.write(statementHierarchy(stat).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write DOT file for statement hierarchy", e);
 		}
 	}
 
@@ -808,7 +810,7 @@ public class DotExporter {
 			                    name).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write DOT file: " + name, e);
 		}
 	}
 
@@ -826,7 +828,7 @@ public class DotExporter {
 			                    suffix).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write error DOT file for statement", e);
 		}
 	}
 
@@ -842,7 +844,7 @@ public class DotExporter {
 			                    name).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write error DOT file: " + name, e);
 		}
 	}
 
@@ -859,7 +861,7 @@ public class DotExporter {
 			out.write(varsToDot(graph).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write DOT file for var versions graph", e);
 		}
 	}
 
@@ -886,7 +888,7 @@ public class DotExporter {
 			out.write(decompileRecordToDot(decompileRecord).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write DOT file for decompile record", e);
 		}
 	}
 
@@ -906,7 +908,7 @@ public class DotExporter {
 			                   showMultipleEdges).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write DOT file for control flow graph", e);
 		}
 	}
 
@@ -925,7 +927,25 @@ public class DotExporter {
 			                   true).getBytes());
 			out.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logError("Failed to write error DOT file for control flow graph", e);
+		}
+	}
+
+	private static void logError(String message, Exception e) {
+		IFernflowerLogger logger = getLogger();
+		if (logger != null) {
+			logger.writeMessage(message, IFernflowerLogger.Severity.ERROR, e);
+		} else {
+			System.err.println("ERROR: " + message);
+			e.printStackTrace(System.err);
+		}
+	}
+
+	private static IFernflowerLogger getLogger() {
+		try {
+			return DecompilerContext.getLogger();
+		} catch (Exception e) {
+			return null;
 		}
 	}
 }

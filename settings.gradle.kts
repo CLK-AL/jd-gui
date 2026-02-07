@@ -36,13 +36,13 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "jd-gui"
+rootProject.name = "gui"
 
 // =============================================================================
 // Module Structure for Kotlin Multiplatform
 // =============================================================================
 //
-// jd-gui/
+// gui/
 // ├── common/              # Shared KMP code (models, interfaces)
 // │   ├── commonMain       # Platform-agnostic code
 // │   ├── jvmMain          # JVM-specific (ServiceLoader)

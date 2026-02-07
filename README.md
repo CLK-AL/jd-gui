@@ -1,9 +1,9 @@
-# JD-GUI
+# gui
 
-JD-GUI is a standalone graphical utility that displays Java source codes of ".class" files. You can browse the
-reconstructed source code with the JD-GUI for instant access to methods and fields.
+gui is a standalone graphical utility that displays Java source codes of ".class" files. You can browse the
+reconstructed source code with the gui for instant access to methods and fields.
 
-![](https://raw.githubusercontent.com/java-decompiler/jd-gui/master/src/website/img/jd-gui.png)
+![](https://raw.githubusercontent.com/java-decompiler/gui/master/src/website/img/gui.png)
 
 ## Features (v2026.2.2)
 
@@ -50,7 +50,7 @@ See [docs/puml/](docs/puml/) for PlantUML diagrams:
 ### Module Structure
 
 ```
-jd-gui/
+gui/
 ├── api/                    # Core SPI and ANTLR grammars
 │   └── src/main/antlr4/    # 118 grammar files (55+ languages)
 │       ├── java/{8,9,20,latest}/
@@ -59,7 +59,7 @@ jd-gui/
 │       └── ...
 ├── services/               # Language providers & TokenMakers
 │   └── src/main/java/
-│       └── org/jd/gui/service/language/  # 30+ providers
+│       └── al/clk/gui/service/language/  # 30+ providers
 └── app/                    # Main application
 ```
 
@@ -87,8 +87,8 @@ public interface LanguageSyntaxProvider {
 
 ```bash
 # Clone repository
-git clone https://github.com/java-decompiler/jd-gui.git
-cd jd-gui
+git clone https://github.com/java-decompiler/gui.git
+cd gui
 
 # Build with default Java grammar (latest)
 ./gradlew build
@@ -100,21 +100,21 @@ cd jd-gui
 
 ### Build Outputs
 
-- `build/libs/jd-gui-x.y.z.jar` - Main JAR
-- `build/libs/jd-gui-x.y.z-min.jar` - Minified JAR
-- `build/distributions/jd-gui-windows-x.y.z.zip` - Windows distribution
-- `build/distributions/jd-gui-osx-x.y.z.tar` - macOS distribution
-- `build/distributions/jd-gui-x.y.z.deb` - Debian package
-- `build/distributions/jd-gui-x.y.z.rpm` - RPM package
+- `build/libs/gui-x.y.z.jar` - Main JAR
+- `build/libs/gui-x.y.z-min.jar` - Minified JAR
+- `build/distributions/gui-windows-x.y.z.zip` - Windows distribution
+- `build/distributions/gui-osx-x.y.z.tar` - macOS distribution
+- `build/distributions/gui-x.y.z.deb` - Debian package
+- `build/distributions/gui-x.y.z.rpm` - RPM package
 
 ## Usage
 
 ### Launch
 
-- Double-click on `jd-gui-x.y.z.jar`
-- Windows: Double-click `jd-gui.exe`
-- macOS: Double-click `JD-GUI.app`
-- Command line: `java -jar jd-gui-x.y.z.jar`
+- Double-click on `gui-x.y.z.jar`
+- Windows: Double-click `gui.exe`
+- macOS: Double-click `gui.app`
+- Command line: `java -jar gui-x.y.z.jar`
 
 ### Basic Usage
 
@@ -131,7 +131,7 @@ cd jd-gui
 ./gradlew eclipse # Eclipse
 
 # Launch with extensions
-java -cp jd-gui.jar:extension.jar org.jd.gui.App
+java -cp gui.jar:extension.jar al.clk.gui.App
 ```
 
 ## Version History
@@ -156,7 +156,7 @@ java -cp jd-gui.jar:extension.jar org.jd.gui.App
 
 ## Forked From
 
-- [JD-GUI](https://github.com/java-decompiler/jd-gui) - Original project
+- [gui](https://github.com/java-decompiler/gui) - Original project
 - [Vineflower](https://github.com/Vineflower/vineflower) - Decompiler
 - [grammars-v4](https://github.com/antlr/grammars-v4) - ANTLR grammars
 

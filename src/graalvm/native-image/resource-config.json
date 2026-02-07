@@ -2,13 +2,13 @@
   "resources": {
     "includes": [
       {
-        "pattern": "org/jd/gui/images/.*\\.png$"
+        "pattern": "al/clk/gui/images/.*\\.png$"
       },
       {
-        "pattern": "org/jd/gui/images/.*\\.gif$"
+        "pattern": "al/clk/gui/images/.*\\.gif$"
       },
       {
-        "pattern": "org/jd/gui/images/.*\\.ico$"
+        "pattern": "al/clk/gui/images/.*\\.ico$"
       },
       {
         "pattern": "META-INF/services/.*"

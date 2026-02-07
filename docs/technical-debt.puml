@@ -4,7 +4,7 @@ skinparam backgroundColor #FEFEFE
 skinparam defaultFontName Monospaced
 skinparam packageStyle rectangle
 
-title Technical Debt Tracking - JD-GUI\nComprehensive Analysis
+title Technical Debt Tracking - gui\nComprehensive Analysis
 caption Generated: 2026-02-06 | Branch: claude/java-21-graalvm-support-Q3IAS\nAgents: Security, Performance, Code Quality
 
 ' ========================================
@@ -218,7 +218,7 @@ package "Language Syntax Providers" as LangProviders #LightGreen {
 
   note bottom of SysLang
     **Location:**
-    services/src/main/java/org/jd/gui/
+    services/src/main/java/al/clk/gui/
     service/language/*LanguageSyntaxProvider.java
 
     **Pattern:** Line 23 throws

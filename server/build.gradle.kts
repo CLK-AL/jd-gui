@@ -6,11 +6,11 @@ plugins {
     application
 }
 
-group = "org.jd.gui"
+group = "al.clk.gui"
 version = rootProject.version
 
 application {
-    mainClass.set("org.jd.gui.server.ApplicationKt")
+    mainClass.set("al.clk.gui.server.ApplicationKt")
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")

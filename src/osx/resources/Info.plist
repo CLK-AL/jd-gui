@@ -4,10 +4,10 @@
 	<dict>
 		<key>CFBundleDevelopmentRegion</key>		<string>English</string>
 		<key>CFBundleExecutable</key>				<string>universalJavaApplicationStub.sh</string>
-		<key>CFBundleName</key>						<string>JD-GUI</string>
-		<key>CFBundleGetInfoString</key>			<string>JD-GUI version ${VERSION}, Copyright 2008, 2019 Emmanuel Dupuy</string>
-		<key>CFBundleIconFile</key>					<string>jd-gui.icns</string>
-		<key>CFBundleIdentifier</key>				<string>jd.jd-gui</string>
+		<key>CFBundleName</key>						<string>gui</string>
+		<key>CFBundleGetInfoString</key>			<string>gui version ${VERSION}, Copyright 2008, 2019 Emmanuel Dupuy</string>
+		<key>CFBundleIconFile</key>					<string>gui.icns</string>
+		<key>CFBundleIdentifier</key>				<string>jd.gui</string>
 		<key>CFBundleInfoDictionaryVersion</key>	<string>6.0</string>
 		<key>CFBundlePackageType</key>				<string>APPL</string>
 		<key>CFBundleLongVersionString</key>		<string>${VERSION}, Copyright 2008, 2019 Emmanuel Dupuy</string>
@@ -145,7 +145,7 @@
 		</array>
 		<key>JavaX</key>
 		<dict>
-			<key>MainClass</key>					<string>org.jd.gui.OsxApp</string>
+			<key>MainClass</key>					<string>al.clk.gui.OsxApp</string>
 			<key>JVMVersion</key>					<string>1.8+</string>
 			<key>ClassPath</key>					<string>\$JAVAROOT/${JAR}</string>
 			<key>WorkingDirectory</key>				<string>\$JAVAROOT</string>

@@ -1,0 +1,67 @@
+# Language syntax providers for ANTLR parsing and RSyntaxTextArea highlighting
+# Add new language providers below (one fully qualified class name per line)
+
+# ============================================================================
+# JVM Languages
+# ============================================================================
+al.clk.gui.service.language.JavaLanguageSyntaxProvider
+al.clk.gui.service.language.KotlinLanguageSyntaxProvider
+al.clk.gui.service.language.ScalaLanguageSyntaxProvider
+al.clk.gui.service.language.GroovyLanguageSyntaxProvider
+
+# ============================================================================
+# Web Languages
+# ============================================================================
+al.clk.gui.service.language.JavaScriptLanguageSyntaxProvider
+al.clk.gui.service.language.TypeScriptLanguageSyntaxProvider
+al.clk.gui.service.language.HtmlLanguageSyntaxProvider
+al.clk.gui.service.language.CssLanguageSyntaxProvider
+al.clk.gui.service.language.LessLanguageSyntaxProvider
+al.clk.gui.service.language.ScssLanguageSyntaxProvider
+al.clk.gui.service.language.PhpLanguageSyntaxProvider
+
+# ============================================================================
+# Systems Programming Languages
+# ============================================================================
+al.clk.gui.service.language.CLanguageSyntaxProvider
+al.clk.gui.service.language.CppLanguageSyntaxProvider
+al.clk.gui.service.language.CSharpLanguageSyntaxProvider
+al.clk.gui.service.language.RustLanguageSyntaxProvider
+al.clk.gui.service.language.GoLanguageSyntaxProvider
+
+# ============================================================================
+# Scripting Languages
+# ============================================================================
+al.clk.gui.service.language.PythonLanguageSyntaxProvider
+al.clk.gui.service.language.RubyLanguageSyntaxProvider
+al.clk.gui.service.language.PerlLanguageSyntaxProvider
+al.clk.gui.service.language.LuaLanguageSyntaxProvider
+al.clk.gui.service.language.ShellLanguageSyntaxProvider
+
+# ============================================================================
+# Data Formats
+# ============================================================================
+al.clk.gui.service.language.XmlLanguageSyntaxProvider
+al.clk.gui.service.language.JsonLanguageSyntaxProvider
+al.clk.gui.service.language.YamlLanguageSyntaxProvider
+al.clk.gui.service.language.TomlLanguageSyntaxProvider
+al.clk.gui.service.language.PropertiesLanguageSyntaxProvider
+
+# ============================================================================
+# API & Schema Languages
+# ============================================================================
+al.clk.gui.service.language.GraphQLLanguageSyntaxProvider
+al.clk.gui.service.language.ProtobufLanguageSyntaxProvider
+al.clk.gui.service.language.SqlLanguageSyntaxProvider
+
+# ============================================================================
+# Build & DevOps
+# ============================================================================
+al.clk.gui.service.language.MakefileLanguageSyntaxProvider
+al.clk.gui.service.language.DockerfileLanguageSyntaxProvider
+
+# ============================================================================
+# Documentation
+# ============================================================================
+al.clk.gui.service.language.MarkdownLanguageSyntaxProvider
+al.clk.gui.service.language.LatexLanguageSyntaxProvider

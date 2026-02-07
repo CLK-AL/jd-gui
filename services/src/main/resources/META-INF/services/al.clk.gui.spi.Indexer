@@ -1,0 +1,12 @@
+al.clk.gui.service.indexer.DirectoryIndexerProvider
+al.clk.gui.service.indexer.ClassFileIndexerProvider
+al.clk.gui.service.indexer.EjbJarXmlFileIndexerProvider
+al.clk.gui.service.indexer.JavaFileIndexerProvider
+al.clk.gui.service.indexer.JavaModuleFileIndexerProvider
+al.clk.gui.service.indexer.JavaModuleInfoFileIndexerProvider
+al.clk.gui.service.indexer.MetainfServiceFileIndexerProvider
+al.clk.gui.service.indexer.TextFileIndexerProvider
+al.clk.gui.service.indexer.WebXmlFileIndexerProvider
+al.clk.gui.service.indexer.ZipFileIndexerProvider
+al.clk.gui.service.indexer.XmlBasedFileIndexerProvider
+al.clk.gui.service.indexer.XmlFileIndexerProvider

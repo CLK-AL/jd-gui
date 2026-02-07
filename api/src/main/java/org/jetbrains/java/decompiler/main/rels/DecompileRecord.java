@@ -1,5 +1,7 @@
 package org.jetbrains.java.decompiler.main.rels;
 
+import org.jetbrains.java.decompiler.main.DecompilerContext;
+import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.RootStatement;
 import org.jetbrains.java.decompiler.struct.StructMethod;
 import org.jetbrains.java.decompiler.util.DotExporter;
@@ -63,10 +65,14 @@ public final class DecompileRecord {
 	}
 
 	public void print() {
+		IFernflowerLogger logger = DecompilerContext.getLogger();
 		for (int i = 0;
 		     i < this.names.size();
 		     i++) {
-			System.out.println(i + " " + this.names.get(i));
+			String message = i + " " + this.names.get(i);
+			if (logger != null) {
+				logger.writeMessage(message, IFernflowerLogger.Severity.INFO);
+			}
 		}
 	}
 }

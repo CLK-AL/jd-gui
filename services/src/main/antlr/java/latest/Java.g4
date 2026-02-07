@@ -4,7 +4,7 @@
  Copyright (c) 2017 Ivan Kochurkin (upgrade to Java 8)
  Copyright (c) 2021 Michał Lorek (upgrade to Java 11)
  Copyright (c) 2022 Michał Lorek (upgrade to Java 17)
- Copyright (c) 2025 JD-GUI Contributors (Java 24+ tracking)
+ Copyright (c) 2025 gui Contributors (Java 24+ tracking)
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without

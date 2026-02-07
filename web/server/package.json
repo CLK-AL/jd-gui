@@ -1,7 +1,7 @@
 {
-  "name": "jd-gui-collab-server",
+  "name": "gui-collab-server",
   "version": "2026.2.2",
-  "description": "JD-GUI Collaborative Editing Server with Hocuspocus/Yjs",
+  "description": "gui Collaborative Editing Server with Hocuspocus/Yjs",
   "main": "dist/server.js",
   "type": "module",
   "scripts": {

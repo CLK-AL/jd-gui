@@ -1,5 +1,5 @@
 /**
- * JD-GUI Service Worker
+ * gui Service Worker
  *
  * Provides offline support and caching for the PWA.
  *
@@ -7,15 +7,15 @@
  * Licensed under GPLv3.
  */
 
-const CACHE_NAME = 'jd-gui-v2026.2.2';
-const RUNTIME_CACHE = 'jd-gui-runtime';
+const CACHE_NAME = 'gui-v2026.2.2';
+const RUNTIME_CACHE = 'gui-runtime';
 
 // Files to cache on install
 const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/jd-gui-web.js',
+  '/gui-web.js',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   // Monaco Editor (CDN)
@@ -252,7 +252,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'JD-GUI', options)
+    self.registration.showNotification(data.title || 'gui', options)
   );
 });
 
@@ -269,7 +269,7 @@ self.addEventListener('notificationclick', (event) => {
 // Simple IndexedDB helper (for offline sync)
 function openIndexedDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('jd-gui-offline', 1);
+    const request = indexedDB.open('gui-offline', 1);
 
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve({

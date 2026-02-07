@@ -5,7 +5,7 @@ skinparam backgroundColor #FEFEFE
 skinparam sequenceFontSize 11
 skinparam noteFontSize 9
 
-title JD-GUI File Loading and Decompilation Flow
+title gui File Loading and Decompilation Flow
 caption Sequence diagram for opening and decompiling Java class files
 
 actor User

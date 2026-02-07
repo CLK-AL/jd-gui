@@ -6,7 +6,7 @@ skinparam classFontSize 11
 skinparam noteFontSize 9
 skinparam packageStyle rectangle
 
-title JD-GUI Tree Node Factory Selector Pattern
+title gui Tree Node Factory Selector Pattern
 caption How TreeNodeFactory uses selectors to match container entries
 
 ' ========================================
@@ -41,7 +41,7 @@ package "SPI Interface" #E8F5E9 {
     note right of TreeNodeFactory
         **Location:**
         api/src/main/java/
-        org/jd/gui/spi/TreeNodeFactory.java
+        al/clk/gui/spi/TreeNodeFactory.java
     end note
 }
 
@@ -304,7 +304,7 @@ package "Kotlin Server (Reusing Pattern)" #E8EAF6 {
     note right of KotlinTreeNodeFactory
         **Location:**
         server/src/main/kotlin/
-        org/jd/gui/server/treenode/
+        al/clk/gui/server/treenode/
 
         **Same selector pattern:**
         {containerType}:{fileOrDir}:{pathPattern}
@@ -353,13 +353,13 @@ legend right
 
     **Java Location:**
     services/src/main/java/
-    org/jd/gui/service/treenode/
+    al/clk/gui/service/treenode/
 
     **Kotlin Location:**
     server/src/main/kotlin/
-    org/jd/gui/server/treenode/
+    al/clk/gui/server/treenode/
 endlegend
 
-footer JD-GUI Tree Node Factory Pattern | Java SPI + Kotlin Adaptation
+footer gui Tree Node Factory Pattern | Java SPI + Kotlin Adaptation
 
 @enduml

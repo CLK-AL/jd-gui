@@ -2,10 +2,10 @@
 <project version="4">
   <component name="CompilerConfiguration">
     <bytecodeTargetLevel target="1.8">
-      <module name="jd-gui.antlr" target="11" />
-      <module name="jd-gui.service" target="11" />
-      <module name="jd-gui.service-controllers" target="11" />
-      <module name="jd-gui.view-model" target="11" />
+      <module name="gui.antlr" target="11" />
+      <module name="gui.service" target="11" />
+      <module name="gui.service-controllers" target="11" />
+      <module name="gui.view-model" target="11" />
     </bytecodeTargetLevel>
   </component>
 </project>

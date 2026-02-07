@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#1976D2">
-    <meta name="description" content="JD-GUI - A collaborative Java Decompiler with real-time editing">
+    <meta name="description" content="gui - A collaborative Java Decompiler with real-time editing">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="JD-GUI">
+    <meta name="apple-mobile-web-app-title" content="gui">
 
-    <title>JD-GUI - Java Decompiler</title>
+    <title>gui - Java Decompiler</title>
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -273,7 +273,7 @@
 <body>
     <div id="app">
         <header class="header">
-            <h1>☕ JD-GUI</h1>
+            <h1>☕ gui</h1>
             <div class="header-actions">
                 <button class="btn btn-primary" id="openFileBtn">📂 Open</button>
                 <button class="btn btn-secondary" id="saveBtn">💾 Save</button>
@@ -324,7 +324,7 @@
         require(['vs/editor/editor.main'], function () {
             // Create Monaco Editor
             editor = monaco.editor.create(document.getElementById('editor'), {
-                value: '// Welcome to JD-GUI Web\n// Open a JAR or CLASS file to start decompiling\n\npublic class Welcome {\n    public static void main(String[] args) {\n        System.out.println("Hello, JD-GUI!");\n    }\n}',
+                value: '// Welcome to gui Web\n// Open a JAR or CLASS file to start decompiling\n\npublic class Welcome {\n    public static void main(String[] args) {\n        System.out.println("Hello, gui!");\n    }\n}',
                 language: 'java',
                 theme: 'vs',
                 automaticLayout: true,
@@ -464,6 +464,6 @@
     </script>
 
     <!-- Kotlin/JS entry point -->
-    <script src="jd-gui-web.js"></script>
+    <script src="gui-web.js"></script>
 </body>
 </html>

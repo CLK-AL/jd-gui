@@ -1,0 +1,7 @@
+# Order is important : 'GenericContainerFactoryProvider' must be the last
+al.clk.gui.service.container.KarContainerFactoryProvider
+al.clk.gui.service.container.JavaModuleContainerFactoryProvider
+al.clk.gui.service.container.EarContainerFactoryProvider
+al.clk.gui.service.container.WarContainerFactoryProvider
+al.clk.gui.service.container.JarContainerFactoryProvider
+al.clk.gui.service.container.GenericContainerFactoryProvider

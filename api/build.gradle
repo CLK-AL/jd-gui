@@ -21,7 +21,7 @@ ext.antlr4 = [
     version       : findProperty('antlrVersion') ?: 'latest',
     antlrSource   : 'src/main/antlr4',
     destinationDir: 'src-generated/antlr4/java',
-    grammarPackage: 'org.jd.gui.util.parser.antlr4'
+    grammarPackage: 'al.clk.gui.util.parser.antlr4'
 ]
 // Resolve grammar source directory based on language and version
 ext.antlr4.grammarDir = "${antlr4.antlrSource}/${antlr4.language}/${antlr4.version}"

@@ -1,11 +1,11 @@
 @startuml Module Overview
 
-title JD-GUI Module Architecture
+title gui Module Architecture
 
 skinparam componentStyle uml2
 skinparam packageStyle rectangle
 
-package "JD-GUI Application" {
+package "gui Application" {
 
     component [app] as app {
         [Main Entry Point]

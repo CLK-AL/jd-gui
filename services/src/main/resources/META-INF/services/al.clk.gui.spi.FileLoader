@@ -1,0 +1,10 @@
+al.clk.gui.service.fileloader.AarFileLoaderProvider
+al.clk.gui.service.fileloader.ClassFileLoaderProvider
+al.clk.gui.service.fileloader.EarFileLoaderProvider
+al.clk.gui.service.fileloader.JarFileLoaderProvider
+al.clk.gui.service.fileloader.JavaFileLoaderProvider
+al.clk.gui.service.fileloader.JavaModuleFileLoaderProvider
+al.clk.gui.service.fileloader.KarFileLoaderProvider
+al.clk.gui.service.fileloader.LogFileLoaderProvider
+al.clk.gui.service.fileloader.WarFileLoaderProvider
+al.clk.gui.service.fileloader.ZipFileLoaderProvider

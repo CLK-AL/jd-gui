@@ -9,7 +9,7 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-group = "org.jd.gui"
+group = "al.clk.gui"
 version = rootProject.version
 
 kotlin {
@@ -95,7 +95,7 @@ kotlin {
 }
 
 android {
-    namespace = "org.jd.gui"
+    namespace = "al.clk.gui"
     compileSdk = 34
 
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
@@ -103,7 +103,7 @@ android {
     sourceSets["main"].resources.srcDirs("src/commonMain/resources")
 
     defaultConfig {
-        applicationId = "org.jd.gui"
+        applicationId = "al.clk.gui"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -142,21 +142,21 @@ android {
 
 compose.desktop {
     application {
-        mainClass = "org.jd.gui.MainKt"
+        mainClass = "al.clk.gui.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "JD-GUI"
+            packageName = "gui"
             packageVersion = rootProject.version.toString()
 
             macOS {
                 iconFile.set(project.file("icons/icon.icns"))
-                bundleID = "org.jd.gui"
+                bundleID = "al.clk.gui"
             }
 
             windows {
                 iconFile.set(project.file("icons/icon.ico"))
-                menuGroup = "JD-GUI"
+                menuGroup = "gui"
             }
 
             linux {

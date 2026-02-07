@@ -1,5 +1,5 @@
 /**
- * JD-GUI Collaborative Editing Server
+ * gui Collaborative Editing Server
  *
  * Uses Hocuspocus (Yjs) for real-time collaborative code editing.
  * Supports Monaco and Ace editors via y-monaco and y-ace bindings.
@@ -44,7 +44,7 @@ const documents = new Map<string, Y.Doc>();
  * Hocuspocus Server Configuration
  */
 const hocuspocus = Server.configure({
-  name: 'jd-gui-collab',
+  name: 'gui-collab',
   port: WS_PORT,
   address: HOST,
 
@@ -195,7 +195,7 @@ app.use(limiter);
 app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
-    server: 'jd-gui-collab',
+    server: 'gui-collab',
     version: '2026.2.2',
     uptime: process.uptime(),
     documents: documents.size,
@@ -520,7 +520,7 @@ async function main() {
   });
 
   httpServer.listen(PORT, HOST, () => {
-    console.log(`🚀 JD-GUI Collab API server running on http://${HOST}:${PORT}`);
+    console.log(`🚀 gui Collab API server running on http://${HOST}:${PORT}`);
     console.log(`📁 File watch WebSocket running on ws://${HOST}:${WS_PORT + 1}`);
     console.log(`📝 Health check: http://${HOST}:${PORT}/health`);
   });

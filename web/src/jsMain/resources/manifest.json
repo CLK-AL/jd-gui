@@ -1,6 +1,6 @@
 {
-  "name": "JD-GUI - Java Decompiler",
-  "short_name": "JD-GUI",
+  "name": "gui - Java Decompiler",
+  "short_name": "gui",
   "description": "A collaborative Java Decompiler with real-time editing, multi-language syntax highlighting, and Vineflower decompiler",
   "start_url": "/",
   "display": "standalone",
@@ -70,14 +70,14 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "JD-GUI Desktop View"
+      "label": "gui Desktop View"
     },
     {
       "src": "screenshots/mobile.png",
       "sizes": "750x1334",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "JD-GUI Mobile View"
+      "label": "gui Mobile View"
     }
   ],
   "shortcuts": [
@@ -128,11 +128,11 @@
   "related_applications": [
     {
       "platform": "play",
-      "url": "https://play.google.com/store/apps/details?id=org.jd.gui"
+      "url": "https://play.google.com/store/apps/details?id=al.clk.gui"
     },
     {
       "platform": "itunes",
-      "url": "https://apps.apple.com/app/jd-gui/id0000000000"
+      "url": "https://apps.apple.com/app/gui/id0000000000"
     }
   ],
   "prefer_related_applications": false

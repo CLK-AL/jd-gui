@@ -5,7 +5,7 @@ skinparam backgroundColor #FEFEFE
 skinparam classFontSize 11
 skinparam noteFontSize 9
 
-title JD-GUI Container Model Hierarchy
+title gui Container Model Hierarchy
 caption Archive and file system container abstractions
 
 ' ========================================
@@ -51,7 +51,7 @@ package "Container Implementations (services/model/container)" #FFF3E0 {
     note right of GenericContainer
         **Base implementation**
         Path: services/src/main/java/
-        org/jd/gui/model/container/
+        al/clk/gui/model/container/
         --
         Manages Entry tree structure
         Provides URI generation
@@ -317,6 +317,6 @@ legend right
     - Directories
 endlegend
 
-footer JD-GUI Container Hierarchy | services/src/main/java/org/jd/gui/model/container/
+footer gui Container Hierarchy | services/src/main/java/al/clk/gui/model/container/
 
 @enduml

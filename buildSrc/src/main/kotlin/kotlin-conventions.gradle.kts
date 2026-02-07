@@ -1,5 +1,5 @@
 /**
- * Kotlin conventions plugin for JD-GUI project
+ * Kotlin conventions plugin for gui project
  * Provides consistent Kotlin configuration across modules
  */
 

@@ -9,7 +9,7 @@ plugins {
 
 // Common configuration //
 rootProject.version = '2026.2.2'
-rootProject.description = 'JD-GUI (C) 2008-2026 Emmanuel Dupuy & Tomer Bar-Shlomo, a Java Decompiler GUI with multi-language syntax highlighting and Vineflower decompiler'
+rootProject.description = 'gui (C) 2008-2026 Emmanuel Dupuy & Tomer Bar-Shlomo, a Java Decompiler GUI with multi-language syntax highlighting and Vineflower decompiler'
 rootProject.ext.set('jdCoreVersion', '1.1.3')
 
 // Java 21 LTS support
@@ -84,10 +84,10 @@ jar {
     from deps
 
     manifest {
-        attributes 'Main-Class': 'org.jd.gui.App',
-                'SplashScreen-Image': 'org/jd/gui/images/jd_icon_128.png',
-                'JD-GUI-Version': project.version,
-                'JD-GUI-Description': project.description,
+        attributes 'Main-Class': 'al.clk.gui.App',
+                'SplashScreen-Image': 'al/clk/gui/images/jd_icon_128.png',
+                'gui-Version': project.version,
+                'gui-Description': project.description,
                 'JD-Core-Version': project.jdCoreVersion,
                 'Vineflower-Version': vineflowerVersion,
                 'Multi-Release': 'true'
@@ -153,20 +153,20 @@ ext.minJarPath = "build/libs/${project.name}-${project.version}-min.jar"
 launch4j {
     dependsOn 'proguard'
 
-    mainClassName = 'org.jd.gui.App'
+    mainClassName = 'al.clk.gui.App'
     headerType = 'gui'
     jarTask = project.tasks.proguard
-    outfile = 'jd-gui.exe'
-    icon = "${projectDir}/src/launch4j/resources/images/jd-gui.ico"
+    outfile = 'gui.exe'
+    icon = "${projectDir}/src/launch4j/resources/images/gui.ico"
     version = project.version
     textVersion = project.version
     copyright = project.description
     companyName = 'JD Project'
-    fileDescription = 'JD-GUI'
-    productName = 'JD-GUI'
+    fileDescription = 'gui'
+    productName = 'gui'
     jreMinVersion = '21'
     bundledJrePath = '%JAVA_HOME%'
-    errTitle = 'JD-GUI Windows Wrapper'
+    errTitle = 'gui Windows Wrapper'
 }
 
 // Packages for Linux //
@@ -181,7 +181,7 @@ ospackage {
     packageName = project.name
     release = project.version
     summary = 'A Java Decompiler'
-    url = 'https://github.com/java-decompiler/jd-gui'
+    url = 'https://github.com/java-decompiler/gui'
 
     into '/opt/' + project.name
     from(file(minJarPath)) {
@@ -192,8 +192,8 @@ ospackage {
     }
     from 'LICENSE', 'NOTICE', 'README.md'
 
-    postInstall 'cd /opt/' + project.name + '; ln -s ./' + file(minJarPath).name + ' ./jd-gui.jar; xdg-icon-resource install --size 128 --novendor ./jd_icon_128.png jd-gui; xdg-desktop-menu install ./*.desktop'
-    preUninstall 'cd /opt/' + project.name + '; rm -f ./jd-gui.jar; rm -fr ./ext; xdg-desktop-menu uninstall ./*.desktop'
+    postInstall 'cd /opt/' + project.name + '; ln -s ./' + file(minJarPath).name + ' ./gui.jar; xdg-icon-resource install --size 128 --novendor ./jd_icon_128.png gui; xdg-desktop-menu install ./*.desktop'
+    preUninstall 'cd /opt/' + project.name + '; rm -f ./gui.jar; rm -fr ./ext; xdg-desktop-menu uninstall ./*.desktop'
 }
 
 buildDeb.dependsOn 'proguard'
@@ -203,20 +203,20 @@ buildRpm.dependsOn 'proguard'
 distributions {
     osx {
         contents {
-            into('JD-GUI.app/Contents') {
+            into('gui.app/Contents') {
                 from('src/osx/resources') {
                     include 'Info.plist'
                     expand VERSION: project.version,
                             JAR: file(minJarPath).name
                 }
             }
-            into('JD-GUI.app/Contents/MacOS') {
+            into('gui.app/Contents/MacOS') {
                 from('src/osx/resources') {
                     include 'universalJavaApplicationStub.sh'
                     fileMode 0755
                 }
             }
-            into('JD-GUI.app/Contents/Resources/Java') {
+            into('gui.app/Contents/Resources/Java') {
                 from file(minJarPath)
             }
             from 'LICENSE', 'NOTICE', 'README.md'
@@ -224,7 +224,7 @@ distributions {
     }
     windows {
         contents {
-            from 'build/launch4j/jd-gui.exe'
+            from 'build/launch4j/gui.exe'
             from 'LICENSE', 'NOTICE', 'README.md'
         }
     }

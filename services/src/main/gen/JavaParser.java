@@ -1,4 +1,4 @@
-// Generated from C:/Users/vrdat/OneDrive/Documents/git/Java Decompile/jd-gui/services/src/main/antlr\Java.g4 by ANTLR 4.9.2
+// Generated from C:/Users/vrdat/OneDrive/Documents/git/Java Decompile/gui/services/src/main/antlr\Java.g4 by ANTLR 4.9.2
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;

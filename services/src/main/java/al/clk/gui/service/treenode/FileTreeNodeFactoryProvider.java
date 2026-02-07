@@ -1,0 +1,68 @@
+/*
+ * Copyright (c) 2008-2022 Emmanuel Dupuy & Tomer Bar-Shlomo.
+ * This project is distributed under the GPLv3 license.
+ * This is a Copyleft license that gives the user the right to use,
+ * copy and modify the code freely for non-commercial purposes.
+ */
+
+package al.clk.gui.service.treenode;
+
+import al.clk.gui.api.API;
+import al.clk.gui.api.feature.ContainerEntryGettable;
+import al.clk.gui.api.feature.UriGettable;
+import al.clk.gui.api.model.Container;
+import al.clk.gui.view.data.TreeNodeBean;
+
+import javax.swing.*;
+import javax.swing.tree.DefaultMutableTreeNode;
+import java.io.File;
+import java.net.URI;
+
+public class FileTreeNodeFactoryProvider
+				extends AbstractTreeNodeFactoryProvider {
+	protected static final ImageIcon ICON = new ImageIcon(FileTreeNodeFactoryProvider.class.getClassLoader()
+	                                                                                       .getResource("al/clk/gui"
+	                                                                                                    + "/images"
+	                                                                                                    +
+	                                                                                                    "/file_plain_obj"
+	                                                                                                    + ".png"));
+
+	@Override
+	public String[] getSelectors() {return appendSelectors("*:file:*");}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public <T extends DefaultMutableTreeNode & ContainerEntryGettable & UriGettable> T make(API api,
+	                                                                                        Container.Entry entry) {
+		int lastSlashIndex = entry.getPath()
+		                          .lastIndexOf('/');
+		String label = entry.getPath()
+		                    .substring(lastSlashIndex + 1);
+		String location = new File(entry.getUri()).getPath();
+		return (T) new TreeNode(entry,
+		                        new TreeNodeBean(label,
+		                                         "Location: " + location,
+		                                         ICON));
+	}
+
+	protected static class TreeNode
+					extends DefaultMutableTreeNode
+					implements ContainerEntryGettable,
+					           UriGettable {
+		protected Container.Entry entry;
+
+		public TreeNode(Container.Entry entry,
+		                Object userObject) {
+			super(userObject);
+			this.entry = entry;
+		}
+
+		// --- ContainerEntryGettable --- //
+		@Override
+		public Container.Entry getEntry() {return entry;}
+
+		// --- UriGettable --- //
+		@Override
+		public URI getUri() {return entry.getUri();}
+	}
+}

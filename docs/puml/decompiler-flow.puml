@@ -9,7 +9,7 @@ skinparam activityBorderColor #333333
 start
 :Open .class or .jar file;
 
-|JD-GUI|
+|gui|
 :Load bytecode with ASM 9.6;
 
 if (Single class?) then (yes)
@@ -36,7 +36,7 @@ endif
 
 :Extract references\n(type usage, method calls);
 
-|JD-GUI|
+|gui|
 :Build navigation index;
 :Enable hyperlink navigation;
 :Display in editor;

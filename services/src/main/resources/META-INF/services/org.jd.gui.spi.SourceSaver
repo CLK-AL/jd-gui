@@ -1,5 +1,0 @@
-org.jd.gui.service.sourcesaver.ClassFileSourceSaverProvider
-org.jd.gui.service.sourcesaver.DirectorySourceSaverProvider
-org.jd.gui.service.sourcesaver.FileSourceSaverProvider
-org.jd.gui.service.sourcesaver.PackageSourceSaverProvider
-org.jd.gui.service.sourcesaver.ZipFileSourceSaverProvider

@@ -6,7 +6,7 @@ plugins {
 version = parent.version
 
 application {
-    mainClass = 'org.jd.gui.App'
+    mainClass = 'al.clk.gui.App'
 }
 
 dependencies {

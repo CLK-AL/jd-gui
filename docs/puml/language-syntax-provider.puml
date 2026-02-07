@@ -88,7 +88,7 @@ GraphQLLanguageSyntaxProvider ..> GraphQLTokenMaker : uses
 note right of LanguageSyntaxProvider
   Service Provider Interface (SPI)
   Discovered via ServiceLoader
-  META-INF/services/org.jd.gui.spi.LanguageSyntaxProvider
+  META-INF/services/al.clk.gui.spi.LanguageSyntaxProvider
 end note
 
 note bottom of LanguageSyntaxProviderRegistry

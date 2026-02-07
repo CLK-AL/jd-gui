@@ -801,14 +801,18 @@ public class TextBuffer {
 		}
 
 		void dump(String indent) {
-			System.out.println(indent
-			                   + "group "
-			                   + myStart
-			                   + "-"
-			                   + (myStart + myLength)
-			                   + ": "
-			                   + myReplacements.size()
-			                   + " replacements");
+			IFernflowerLogger logger = DecompilerContext.getLogger();
+			String message = indent
+			                 + "group "
+			                 + myStart
+			                 + "-"
+			                 + (myStart + myLength)
+			                 + ": "
+			                 + myReplacements.size()
+			                 + " replacements";
+			if (logger != null) {
+				logger.writeMessage(message, IFernflowerLogger.Severity.TRACE);
+			}
 			for (NewlineGroup child : myChildren) {
 				child.dump(indent + "  ");
 			}
