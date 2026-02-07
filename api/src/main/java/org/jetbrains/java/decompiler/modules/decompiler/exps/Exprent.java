@@ -446,4 +446,39 @@ public abstract class Exprent
 	public String toString() {
 		return toJava(0).convertToStringAndAllowDataDiscard();
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	/**
+	 * Accepts a visitor and dispatches to the appropriate visit method.
+	 * <p>
+	 * This method implements the Visitor design pattern, allowing operations
+	 * on the Exprent hierarchy without modifying the classes themselves.
+	 * Each concrete Exprent subclass overrides this method to call the
+	 * corresponding visit method on the visitor.
+	 * <p>
+	 * Example usage:
+	 * <pre>{@code
+	 * ExprentVisitor<String> typeVisitor = new AbstractExprentVisitor<String>() {
+	 *     @Override
+	 *     public String visitInvocation(InvocationExprent exprent) {
+	 *         return "invocation";
+	 *     }
+	 *     @Override
+	 *     public String visitVar(VarExprent exprent) {
+	 *         return "variable";
+	 *     }
+	 * };
+	 * String type = someExprent.accept(typeVisitor);
+	 * }</pre>
+	 *
+	 * @param visitor the visitor to accept
+	 * @param <T>     the return type of the visitor
+	 * @return the result of the visitor's visit method
+	 * @see ExprentVisitor
+	 * @see AbstractExprentVisitor
+	 */
+	public abstract <T> T accept(ExprentVisitor<T> visitor);
 }

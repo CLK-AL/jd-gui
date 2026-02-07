@@ -1017,4 +1017,13 @@ public class FunctionExprent
 		Integer type = (Integer) matchNode.getRuleValue(MatchProperties.EXPRENT_FUNCTYPE);
 		return type == null || this.funcType == type;
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitFunction(this);
+	}
 }

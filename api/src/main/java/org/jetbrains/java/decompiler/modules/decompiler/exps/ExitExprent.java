@@ -210,4 +210,13 @@ public class ExitExprent
 		Integer type = (Integer) matchNode.getRuleValue(MatchProperties.EXPRENT_EXITTYPE);
 		return type == null || this.exitType == type;
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitExit(this);
+	}
 }

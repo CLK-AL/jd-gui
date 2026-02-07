@@ -6,6 +6,7 @@ import org.jetbrains.java.decompiler.code.CodeConstants;
 import org.jetbrains.java.decompiler.main.ClassWriter;
 import org.jetbrains.java.decompiler.main.ClassesProcessor.ClassNode;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
+import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
 import org.jetbrains.java.decompiler.main.extern.IFernflowerPreferences;
 import org.jetbrains.java.decompiler.main.rels.MethodWrapper;
 import org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor;
@@ -79,7 +80,11 @@ public class VarExprent
 			try {
 				return GenericType.parse(lvt.getSignature());
 			} catch (StringIndexOutOfBoundsException ex) {
-				ex.printStackTrace();
+				IFernflowerLogger logger = DecompilerContext.getLogger();
+				if (logger != null) {
+					logger.writeMessage("Failed to parse generic signature: " + lvt.getSignature(),
+					                    IFernflowerLogger.Severity.WARN, ex);
+				}
 			}
 		} else if (lvt != null) {
 			return lvt.getVarType();
@@ -465,5 +470,14 @@ public class VarExprent
 		}
 
 		return true;
+	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitVar(this);
 	}
 }

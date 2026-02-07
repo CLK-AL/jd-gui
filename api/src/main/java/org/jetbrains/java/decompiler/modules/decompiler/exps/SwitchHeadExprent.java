@@ -137,4 +137,13 @@ public class SwitchHeadExprent
 	public void setCaseValues(List<List<Exprent>> caseValues) {
 		this.caseValues = caseValues;
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitSwitchHead(this);
+	}
 }

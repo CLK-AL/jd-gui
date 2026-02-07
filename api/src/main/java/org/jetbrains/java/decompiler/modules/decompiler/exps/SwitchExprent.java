@@ -176,4 +176,13 @@ public class SwitchExprent
 	public void getBytecodeRange(BitSet values) {
 		measureBytecode(values);
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitSwitch(this);
+	}
 }

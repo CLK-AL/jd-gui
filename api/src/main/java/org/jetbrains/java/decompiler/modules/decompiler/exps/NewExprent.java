@@ -1017,4 +1017,13 @@ public class NewExprent
 			constructor.setInvocationInstance();
 		}
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitNew(this);
+	}
 }

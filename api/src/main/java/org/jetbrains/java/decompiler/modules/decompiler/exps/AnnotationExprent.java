@@ -136,4 +136,13 @@ public class AnnotationExprent
 		                parValues);
 		measureBytecode(values);
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitAnnotation(this);
+	}
 }

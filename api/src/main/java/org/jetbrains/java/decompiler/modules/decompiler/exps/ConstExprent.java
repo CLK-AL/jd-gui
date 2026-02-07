@@ -776,4 +776,13 @@ public class ConstExprent
 
 		return true;
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitConst(this);
+	}
 }

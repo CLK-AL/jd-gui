@@ -366,4 +366,13 @@ public class FieldExprent
 
 		return true;
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitField(this);
+	}
 }

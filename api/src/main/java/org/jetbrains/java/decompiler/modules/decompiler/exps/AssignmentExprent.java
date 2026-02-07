@@ -244,4 +244,13 @@ public class AssignmentExprent
 	public void setCondType(int condType) {
 		this.condType = condType;
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitAssignment(this);
+	}
 }

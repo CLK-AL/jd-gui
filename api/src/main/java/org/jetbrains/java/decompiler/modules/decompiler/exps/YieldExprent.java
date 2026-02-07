@@ -86,4 +86,13 @@ public class YieldExprent
 		                this.content);
 		measureBytecode(values);
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	@Override
+	public <T> T accept(ExprentVisitor<T> visitor) {
+		return visitor.visitYield(this);
+	}
 }
