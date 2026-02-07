@@ -133,12 +133,22 @@ class KotlinTokenMaker : GenericTokenMaker(
         return null
     }
 
-    // TODO: Replace with actual ANTLR lexer when generated
-    override fun createLexer(input: CharStream): Lexer {
-        throw NotImplementedError("Use actual KotlinLexer from antlr4 generated sources")
+    // TODO: Generate Kotlin lexer from ANTLR grammar:
+    // 1. Download: https://github.com/antlr/grammars-v4/tree/master/kotlin/kotlin
+    // 2. Run: antlr4 -Dlanguage=Java KotlinLexer.g4
+    // 3. Place generated files in services/src/main/gen/
+    // 4. Update this class to use KotlinLexer
+
+    override fun createLexer(input: CharStream): Lexer? {
+        // Kotlin ANTLR lexer not yet generated
+        // Return null to fall back to keyword-based highlighting
+        return null
     }
 
-    override fun getVocabulary(): Vocabulary {
-        throw NotImplementedError("Use actual KotlinLexer.VOCABULARY from antlr4 generated sources")
+    override fun getVocabulary(): Vocabulary? {
+        // Return null until Kotlin lexer is generated
+        return null
     }
+
+    override fun supportsAntlrLexer(): Boolean = false
 }

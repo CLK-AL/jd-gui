@@ -115,13 +115,25 @@ class TypeScriptTokenMaker : GenericTokenMaker(
         return null
     }
 
-    override fun createLexer(input: CharStream): Lexer {
-        throw NotImplementedError("Use actual TypeScriptLexer from antlr4 generated sources")
+    // TODO: Generate TypeScript lexer from ANTLR grammar:
+    // 1. Download: https://github.com/nicktejada/antlr4-typescript-parser
+    // 2. Or use: https://github.com/nicktejada/antlr4-javascript-parser for JS
+    // 3. Run: antlr4 -Dlanguage=Java TypeScriptLexer.g4
+    // 4. Place generated files in services/src/main/gen/
+    // 5. Update this class to use TypeScriptLexer
+
+    override fun createLexer(input: CharStream): Lexer? {
+        // TypeScript ANTLR lexer not yet generated
+        // Return null to fall back to keyword-based highlighting
+        return null
     }
 
-    override fun getVocabulary(): Vocabulary {
-        throw NotImplementedError("Use actual TypeScriptLexer.VOCABULARY from antlr4 generated sources")
+    override fun getVocabulary(): Vocabulary? {
+        // Return null until TypeScript lexer is generated
+        return null
     }
+
+    override fun supportsAntlrLexer(): Boolean = false
 }
 
 /**
@@ -149,11 +161,22 @@ class JavaScriptTokenMaker : GenericTokenMaker(
         "WeakMap", "WeakSet", "Promise", "Proxy", "Reflect", "JSON", "Math"
     )
 
-    override fun createLexer(input: CharStream): Lexer {
-        throw NotImplementedError("Use actual JavaScriptLexer from antlr4 generated sources")
+    // TODO: Generate JavaScript lexer from ANTLR grammar:
+    // 1. Download: https://github.com/nicktejada/antlr4-javascript-parser
+    // 2. Run: antlr4 -Dlanguage=Java JavaScriptLexer.g4
+    // 3. Place generated files in services/src/main/gen/
+    // 4. Update this class to use JavaScriptLexer
+
+    override fun createLexer(input: CharStream): Lexer? {
+        // JavaScript ANTLR lexer not yet generated
+        // Return null to fall back to keyword-based highlighting
+        return null
     }
 
-    override fun getVocabulary(): Vocabulary {
-        throw NotImplementedError("Use actual JavaScriptLexer.VOCABULARY from antlr4 generated sources")
+    override fun getVocabulary(): Vocabulary? {
+        // Return null until JavaScript lexer is generated
+        return null
     }
+
+    override fun supportsAntlrLexer(): Boolean = false
 }

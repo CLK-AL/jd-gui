@@ -6,6 +6,7 @@ import org.antlr.v4.runtime.Token
 import org.antlr.v4.runtime.Vocabulary
 import org.jd.gui.server.syntax.GenericTokenMaker
 import org.jd.gui.server.syntax.SyntaxTokenType
+import org.jd.gui.util.parser.antlr.JavaLexer
 
 /**
  * TokenMaker for Java source files.
@@ -84,12 +85,11 @@ class JavaTokenMaker : GenericTokenMaker(
         return null
     }
 
-    // TODO: Replace with actual ANTLR lexer when generated
     override fun createLexer(input: CharStream): Lexer {
-        throw NotImplementedError("Use actual JavaLexer from antlr4 generated sources")
+        return JavaLexer(input)
     }
 
     override fun getVocabulary(): Vocabulary {
-        throw NotImplementedError("Use actual JavaLexer.VOCABULARY from antlr4 generated sources")
+        return JavaLexer.VOCABULARY
     }
 }

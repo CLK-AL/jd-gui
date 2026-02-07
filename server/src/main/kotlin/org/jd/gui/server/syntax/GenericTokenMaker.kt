@@ -49,14 +49,22 @@ abstract class GenericTokenMaker(
     open val additionalConstants: Set<String> = emptySet()
 
     /**
-     * Create the ANTLR lexer for this language
+     * Create the ANTLR lexer for this language.
+     * Returns null if the ANTLR lexer is not yet generated.
      */
-    abstract fun createLexer(input: CharStream): Lexer
+    abstract fun createLexer(input: CharStream): Lexer?
 
     /**
-     * Get vocabulary (token names) from the lexer
+     * Get vocabulary (token names) from the lexer.
+     * Returns null if the ANTLR lexer is not yet generated.
      */
-    abstract fun getVocabulary(): Vocabulary
+    abstract fun getVocabulary(): Vocabulary?
+
+    /**
+     * Returns true if this language has a working ANTLR lexer implementation.
+     * When false, tokenization falls back to keyword-based highlighting.
+     */
+    open fun supportsAntlrLexer(): Boolean = true
 
     /**
      * Optional: Custom token classification logic
@@ -75,6 +83,11 @@ abstract class GenericTokenMaker(
             val input = CharStreams.fromString(source)
             val lexer = createLexer(input)
             val vocabulary = getVocabulary()
+
+            // If ANTLR lexer not available, fall back to keyword-based highlighting
+            if (lexer == null || vocabulary == null) {
+                return tokenizeWithKeywords(source)
+            }
 
             // Collect lexer errors
             lexer.removeErrorListeners()
@@ -120,6 +133,54 @@ abstract class GenericTokenMaker(
             tokens = tokens,
             language = languageId,
             errors = errors
+        )
+    }
+
+    /**
+     * Fallback tokenization using keyword-based highlighting.
+     * Used when ANTLR lexer is not available.
+     */
+    private fun tokenizeWithKeywords(source: String): HighlightResult {
+        val tokens = mutableListOf<HighlightToken>()
+        val wordPattern = Regex("""[a-zA-Z_][a-zA-Z0-9_]*|"[^"]*"|'[^']*'|//.*|/\*[\s\S]*?\*/|[0-9]+\.?[0-9]*|[^\s]""")
+
+        var offset = 0
+        for (line in source.lines()) {
+            wordPattern.findAll(line).forEach { match ->
+                val text = match.value
+                val startOffset = offset + match.range.first
+                val endOffset = offset + match.range.last + 1
+
+                val tokenType = when {
+                    text in additionalKeywords -> SyntaxTokenType.KEYWORD
+                    text in additionalTypes -> SyntaxTokenType.TYPE_BUILTIN
+                    text in additionalConstants -> SyntaxTokenType.IDENTIFIER_CONSTANT
+                    text.startsWith("//") -> SyntaxTokenType.COMMENT_LINE
+                    text.startsWith("/*") -> SyntaxTokenType.COMMENT_BLOCK
+                    text.startsWith("\"") || text.startsWith("'") -> SyntaxTokenType.LITERAL_STRING
+                    text.first().isDigit() -> SyntaxTokenType.LITERAL_NUMBER
+                    text.first().isUpperCase() && text.all { it.isLetterOrDigit() || it == '_' } ->
+                        SyntaxTokenType.TYPE_USER
+                    text.first().isLetter() || text.first() == '_' -> SyntaxTokenType.IDENTIFIER
+                    else -> SyntaxTokenType.OPERATOR
+                }
+
+                tokens.add(HighlightToken(
+                    startOffset = startOffset,
+                    endOffset = endOffset,
+                    text = text,
+                    tokenType = tokenType,
+                    antlrTokenType = -1,
+                    antlrTokenName = "FALLBACK"
+                ))
+            }
+            offset += line.length + 1 // +1 for newline
+        }
+
+        return HighlightResult(
+            tokens = tokens,
+            language = languageId,
+            errors = listOf("Note: Using fallback keyword-based highlighting (ANTLR lexer not available)")
         )
     }
 
