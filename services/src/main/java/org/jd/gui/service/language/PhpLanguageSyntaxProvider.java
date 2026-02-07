@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2008-2024 Emmanuel Dupuy & JD-GUI Contributors.
  * This project is distributed under the GPLv3 license.
+ * See LICENSE file for more information.
  */
 
 package org.jd.gui.service.language;
@@ -11,15 +12,62 @@ import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
+/**
+ * PHP language syntax provider implementation.
+ * Uses RSyntaxTextArea's built-in PHP highlighting.
+ *
+ * @since 2024.1.0
+ */
 public class PhpLanguageSyntaxProvider extends AbstractLanguageSyntaxProvider {
+
     public static final String LANGUAGE_ID = "php";
 
-    @Override public String getLanguageId() { return LANGUAGE_ID; }
-    @Override public String getDisplayName() { return "PHP"; }
-    @Override public String getSyntaxStyle() { return SyntaxConstants.SYNTAX_STYLE_PHP; }
-    @Override public Collection<String> getFileExtensions() { return Arrays.asList("php", "php3", "php4", "php5", "phtml"); }
-    @Override public String getTokenMakerClassName() { return "org.fife.ui.rsyntaxtextarea.modes.PHPTokenMaker"; }
-    @Override public void parse(CharStream input, ParseTreeListener listener) { throw new UnsupportedOperationException(); }
-    @Override public int getPriority() { return 50; }
+    private static final List<String> FILE_EXTENSIONS = Arrays.asList(
+            "php", "php3", "php4", "php5", "phtml"
+    );
+
+    @Override
+    public String getLanguageId() {
+        return LANGUAGE_ID;
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "PHP";
+    }
+
+    @Override
+    public String getSyntaxStyle() {
+        return SyntaxConstants.SYNTAX_STYLE_PHP;
+    }
+
+    @Override
+    public Collection<String> getFileExtensions() {
+        return FILE_EXTENSIONS;
+    }
+
+    @Override
+    public String getTokenMakerClassName() {
+        // Uses RSyntaxTextArea's built-in PHP TokenMaker
+        return "org.fife.ui.rsyntaxtextarea.modes.PHPTokenMaker";
+    }
+
+    @Override
+    public void parse(CharStream input, ParseTreeListener listener) {
+        // ANTLR parsing not implemented for PHP
+        // RSyntaxTextArea provides sufficient highlighting without ANTLR
+        throw new UnsupportedOperationException("PHP ANTLR parsing not implemented");
+    }
+
+    @Override
+    public int getPriority() {
+        return 50;
+    }
+
+    @Override
+    public boolean supportsAntlrParsing() {
+        return false; // PHP uses native RSyntaxTextArea highlighting
+    }
 }

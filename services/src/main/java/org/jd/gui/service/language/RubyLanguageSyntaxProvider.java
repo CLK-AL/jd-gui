@@ -11,15 +11,51 @@ import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 public class RubyLanguageSyntaxProvider extends AbstractLanguageSyntaxProvider {
-    public static final String LANGUAGE_ID = "ruby";
 
-    @Override public String getLanguageId() { return LANGUAGE_ID; }
-    @Override public String getDisplayName() { return "Ruby"; }
-    @Override public String getSyntaxStyle() { return SyntaxConstants.SYNTAX_STYLE_RUBY; }
-    @Override public Collection<String> getFileExtensions() { return Arrays.asList("rb", "ruby", "rake", "gemspec", "erb"); }
-    @Override public String getTokenMakerClassName() { return "org.fife.ui.rsyntaxtextarea.modes.RubyTokenMaker"; }
-    @Override public void parse(CharStream input, ParseTreeListener listener) { throw new UnsupportedOperationException(); }
-    @Override public int getPriority() { return 50; }
+    public static final String LANGUAGE_ID = "ruby";
+    private static final List<String> FILE_EXTENSIONS = Arrays.asList("rb", "rbw", "rake", "gemspec");
+
+    @Override
+    public String getLanguageId() {
+        return LANGUAGE_ID;
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "Ruby";
+    }
+
+    @Override
+    public String getSyntaxStyle() {
+        return SyntaxConstants.SYNTAX_STYLE_RUBY;
+    }
+
+    @Override
+    public Collection<String> getFileExtensions() {
+        return FILE_EXTENSIONS;
+    }
+
+    @Override
+    public String getTokenMakerClassName() {
+        return "org.fife.ui.rsyntaxtextarea.modes.RubyTokenMaker";
+    }
+
+    @Override
+    public void parse(CharStream input, ParseTreeListener listener) {
+        // RSyntaxTextArea handles Ruby highlighting natively
+        // ANTLR parsing not required for basic syntax highlighting
+    }
+
+    @Override
+    public int getPriority() {
+        return 50;
+    }
+
+    @Override
+    public boolean supportsAntlrParsing() {
+        return false;
+    }
 }

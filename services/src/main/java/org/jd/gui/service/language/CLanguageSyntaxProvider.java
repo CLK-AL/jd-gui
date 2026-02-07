@@ -20,6 +20,6 @@ public class CLanguageSyntaxProvider extends AbstractLanguageSyntaxProvider {
     @Override public String getSyntaxStyle() { return SyntaxConstants.SYNTAX_STYLE_C; }
     @Override public Collection<String> getFileExtensions() { return Arrays.asList("c", "h"); }
     @Override public String getTokenMakerClassName() { return "org.fife.ui.rsyntaxtextarea.modes.CTokenMaker"; }
-    @Override public void parse(CharStream input, ParseTreeListener listener) { throw new UnsupportedOperationException(); }
+    @Override public void parse(CharStream input, ParseTreeListener listener) { /* Uses RSyntaxTextArea's built-in C support */ }
     @Override public int getPriority() { return 50; }
 }

@@ -18,8 +18,8 @@ public class CppLanguageSyntaxProvider extends AbstractLanguageSyntaxProvider {
     @Override public String getLanguageId() { return LANGUAGE_ID; }
     @Override public String getDisplayName() { return "C++"; }
     @Override public String getSyntaxStyle() { return SyntaxConstants.SYNTAX_STYLE_CPLUSPLUS; }
-    @Override public Collection<String> getFileExtensions() { return Arrays.asList("cpp", "cc", "cxx", "hpp", "hh", "hxx", "h++"); }
+    @Override public Collection<String> getFileExtensions() { return Arrays.asList("cpp", "cxx", "cc", "hpp", "hxx", "hh"); }
     @Override public String getTokenMakerClassName() { return "org.fife.ui.rsyntaxtextarea.modes.CPlusPlusTokenMaker"; }
-    @Override public void parse(CharStream input, ParseTreeListener listener) { throw new UnsupportedOperationException(); }
+    @Override public void parse(CharStream input, ParseTreeListener listener) { /* Uses RSyntaxTextArea's built-in C++ support */ }
     @Override public int getPriority() { return 50; }
 }

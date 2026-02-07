@@ -11,15 +11,51 @@ import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 public class PerlLanguageSyntaxProvider extends AbstractLanguageSyntaxProvider {
-    public static final String LANGUAGE_ID = "perl";
 
-    @Override public String getLanguageId() { return LANGUAGE_ID; }
-    @Override public String getDisplayName() { return "Perl"; }
-    @Override public String getSyntaxStyle() { return SyntaxConstants.SYNTAX_STYLE_PERL; }
-    @Override public Collection<String> getFileExtensions() { return Arrays.asList("pl", "pm", "perl"); }
-    @Override public String getTokenMakerClassName() { return "org.fife.ui.rsyntaxtextarea.modes.PerlTokenMaker"; }
-    @Override public void parse(CharStream input, ParseTreeListener listener) { throw new UnsupportedOperationException(); }
-    @Override public int getPriority() { return 40; }
+    public static final String LANGUAGE_ID = "perl";
+    private static final List<String> FILE_EXTENSIONS = Arrays.asList("pl", "pm", "pod");
+
+    @Override
+    public String getLanguageId() {
+        return LANGUAGE_ID;
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "Perl";
+    }
+
+    @Override
+    public String getSyntaxStyle() {
+        return SyntaxConstants.SYNTAX_STYLE_PERL;
+    }
+
+    @Override
+    public Collection<String> getFileExtensions() {
+        return FILE_EXTENSIONS;
+    }
+
+    @Override
+    public String getTokenMakerClassName() {
+        return "org.fife.ui.rsyntaxtextarea.modes.PerlTokenMaker";
+    }
+
+    @Override
+    public void parse(CharStream input, ParseTreeListener listener) {
+        // RSyntaxTextArea handles Perl highlighting natively
+        // ANTLR parsing not required for basic syntax highlighting
+    }
+
+    @Override
+    public int getPriority() {
+        return 50;
+    }
+
+    @Override
+    public boolean supportsAntlrParsing() {
+        return false;
+    }
 }

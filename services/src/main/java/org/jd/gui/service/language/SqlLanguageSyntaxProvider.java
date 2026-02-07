@@ -20,6 +20,6 @@ public class SqlLanguageSyntaxProvider extends AbstractLanguageSyntaxProvider {
     @Override public String getSyntaxStyle() { return SyntaxConstants.SYNTAX_STYLE_SQL; }
     @Override public Collection<String> getFileExtensions() { return Arrays.asList("sql", "ddl", "dml"); }
     @Override public String getTokenMakerClassName() { return "org.fife.ui.rsyntaxtextarea.modes.SQLTokenMaker"; }
-    @Override public void parse(CharStream input, ParseTreeListener listener) { throw new UnsupportedOperationException(); }
+    @Override public void parse(CharStream input, ParseTreeListener listener) { /* No ANTLR parsing for SQL - uses RSyntaxTextArea tokenizer */ }
     @Override public int getPriority() { return 40; }
 }
