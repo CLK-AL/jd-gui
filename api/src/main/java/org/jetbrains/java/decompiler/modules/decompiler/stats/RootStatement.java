@@ -82,4 +82,9 @@ public class RootStatement
 		                         ? dummyExit.getStartEndRange()
 		                         : null);
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitRoot(this);
+	}
 }

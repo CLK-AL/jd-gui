@@ -180,4 +180,9 @@ public class SynchronizedStatement
 	public List<Exprent> getHeadexprentList() {
 		return headexprent;
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitSync(this);
+	}
 }

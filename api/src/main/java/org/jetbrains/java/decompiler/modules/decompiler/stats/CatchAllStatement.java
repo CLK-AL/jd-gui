@@ -259,4 +259,9 @@ public final class CatchAllStatement
 	public List<VarExprent> getImplicitlyDefinedVars() {
 		return this.vars;
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitCatchAll(this);
+	}
 }

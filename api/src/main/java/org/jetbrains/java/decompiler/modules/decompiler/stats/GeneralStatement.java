@@ -69,4 +69,9 @@ public class GeneralStatement
 
 		return buf;
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitGeneral(this);
+	}
 }

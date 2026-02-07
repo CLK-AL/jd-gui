@@ -301,4 +301,9 @@ public final class DoStatement
 	public void setLooptype(int looptype) {
 		this.looptype = looptype;
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitDo(this);
+	}
 }

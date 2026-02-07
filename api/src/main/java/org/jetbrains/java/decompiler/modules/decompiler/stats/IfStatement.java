@@ -535,4 +535,9 @@ public final class IfStatement
 		Integer type = (Integer) matchNode.getRuleValue(MatchProperties.STATEMENT_IFTYPE);
 		return type == null || this.iftype == type;
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitIf(this);
+	}
 }

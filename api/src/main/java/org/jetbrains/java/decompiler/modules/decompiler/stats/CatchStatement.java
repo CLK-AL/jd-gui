@@ -312,4 +312,9 @@ public final class CatchStatement
 
 		return vars;
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitCatch(this);
+	}
 }

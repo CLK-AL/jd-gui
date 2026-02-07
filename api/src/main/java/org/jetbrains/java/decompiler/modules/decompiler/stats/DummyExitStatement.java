@@ -20,4 +20,9 @@ public class DummyExitStatement
 			bytecode.or(bytecodeOffsets);
 		}
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitDummy(this);
+	}
 }

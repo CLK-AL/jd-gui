@@ -161,4 +161,9 @@ public class BasicBlockStatement
 			                        0);
 		}
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitBasicBlock(this);
+	}
 }

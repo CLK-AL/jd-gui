@@ -146,4 +146,9 @@ public class SequenceStatement
 	public Statement getSimpleCopy() {
 		return new SequenceStatement();
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitSequence(this);
+	}
 }

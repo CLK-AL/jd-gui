@@ -508,4 +508,9 @@ public final class SwitchStatement
 	public void setPhantom(boolean phantom) {
 		this.phantom = phantom;
 	}
+
+	@Override
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitSwitch(this);
+	}
 }

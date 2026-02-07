@@ -1104,4 +1104,41 @@ public class Statement
 
 		return true;
 	}
+
+	// *****************************************************************************
+	// Visitor pattern support
+	// *****************************************************************************
+
+	/**
+	 * Accepts a visitor and dispatches to the appropriate visit method.
+	 * <p>
+	 * This method implements the Visitor design pattern, allowing operations
+	 * on the Statement hierarchy without modifying the classes themselves.
+	 * Each concrete Statement subclass overrides this method to call the
+	 * corresponding visit method on the visitor.
+	 * <p>
+	 * Example usage:
+	 * <pre>{@code
+	 * StatementVisitor<String> typeVisitor = new AbstractStatementVisitor<String>() {
+	 *     @Override
+	 *     public String visitIf(IfStatement statement) {
+	 *         return "if statement";
+	 *     }
+	 *     @Override
+	 *     public String visitDo(DoStatement statement) {
+	 *         return "loop statement";
+	 *     }
+	 * };
+	 * String type = someStatement.accept(typeVisitor);
+	 * }</pre>
+	 *
+	 * @param visitor the visitor to accept
+	 * @param <T>     the return type of the visitor
+	 * @return the result of the visitor's visit method
+	 * @see StatementVisitor
+	 * @see AbstractStatementVisitor
+	 */
+	public <T> T accept(StatementVisitor<T> visitor) {
+		return visitor.visitDefault(this);
+	}
 }
