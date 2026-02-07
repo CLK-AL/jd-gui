@@ -240,10 +240,19 @@ public final class MergeHelper {
 					                                                          elseEdge.getDestination());
 					if (isDirectPath(stat,
 					                 elseEdge.getDestination()) || directlyConnectedToExit) {
-						// FIXME: This is horrible and bad!! Needs an extraction step before loop merging!!
-						if (isIif(firstif.getHeadexprent()
-						                 .getCondition())) {
-							return false;
+						// Check for IIF (ternary) expressions in the condition.
+						// IIF expressions in while conditions require extraction to a temporary variable
+						// before the loop to maintain correct semantics. Without extraction, the ternary
+						// evaluation order and side effects may not be preserved correctly.
+						// For now, skip loop merging when IIF is detected to avoid incorrect decompilation.
+						// A proper fix would involve a preprocessing phase that extracts complex expressions.
+						Exprent condition = firstif.getHeadexprent().getCondition();
+						if (isIif(condition)) {
+							// Check if the IIF is simple enough to be safe in a while condition.
+							// A simple IIF has no method invocations or side effects in its branches.
+							if (!isSimpleSafeIif(condition)) {
+								return false;
+							}
 						}
 
 						// Lift sequences
@@ -329,7 +338,14 @@ public final class MergeHelper {
 							ifedge.setSource(bstat);
 							bstat.addSuccessor(ifedge);
 
-							// TODO: has the potential of breaking if firstif isn't found due to our changes
+							// Verify firstif is still in the statement hierarchy before replacement.
+							// After edge manipulations, the statement structure may have changed,
+							// so we check that firstif is still a child of stat to avoid errors.
+							if (!stat.containsStatementStrict(firstif)) {
+								// firstif is no longer in the expected location - it may have been
+								// removed or moved during previous transformations. Skip this optimization.
+								return false;
+							}
 							stat.replaceStatement(firstif,
 							                      bstat);
 						} else {
@@ -373,6 +389,54 @@ public final class MergeHelper {
 
 		return check.type == Exprent.EXPRENT_FUNCTION
 		       && ((FunctionExprent) check).getFuncType() == FunctionExprent.FUNCTION_IIF;
+	}
+
+	/**
+	 * Checks if an IIF (ternary) expression is simple and safe to use in a while condition.
+	 * A simple IIF contains only variables, constants, and basic operators without method calls
+	 * or other expressions that could have side effects. Such expressions can be safely used
+	 * in loop conditions without needing extraction to a temporary variable.
+	 *
+	 * @param exprent the expression to check
+	 * @return true if the IIF is simple and safe, false if extraction would be required
+	 */
+	private static boolean isSimpleSafeIif(Exprent exprent) {
+		if (exprent == null) {
+			return true;
+		}
+
+		switch (exprent.type) {
+			case Exprent.EXPRENT_CONST:
+			case Exprent.EXPRENT_VAR:
+				// Constants and variables are always safe
+				return true;
+
+			case Exprent.EXPRENT_FUNCTION:
+				FunctionExprent func = (FunctionExprent) exprent;
+				// Check all operands recursively
+				for (Exprent operand : func.getLstOperands()) {
+					if (!isSimpleSafeIif(operand)) {
+						return false;
+					}
+				}
+				return true;
+
+			case Exprent.EXPRENT_INVOCATION:
+				// Method invocations may have side effects, not safe for loop condition
+				return false;
+
+			case Exprent.EXPRENT_ASSIGNMENT:
+				// Assignments have side effects, not safe
+				return false;
+
+			case Exprent.EXPRENT_NEW:
+				// Object creation has side effects, not safe
+				return false;
+
+			default:
+				// For other expression types, be conservative and consider them unsafe
+				return false;
+		}
 	}
 
 	private static void liftToParent(DoStatement stat,
@@ -568,7 +632,20 @@ public final class MergeHelper {
 			}
 		}
 
-		if (hasinit || issingle) {  // FIXME: issingle sufficient?
+		// Determine if we should create a for loop.
+		// - hasinit: We have an initialization expression, so "for (init; cond; inc)" is appropriate.
+		// - issingle: The last block has exactly one expression with multiple break edges pointing to it,
+		//   suggesting it's definitely the increment part. However, without an init, we'd create
+		//   "for (; cond; inc)" which is only cleaner than a while loop if the increment follows
+		//   a typical for-loop pattern (++, --, +=, -=, etc.).
+		boolean shouldCreateForLoop = hasinit;
+		if (!shouldCreateForLoop && issingle) {
+			// Edge case: issingle alone is only sufficient if the increment expression
+			// is a typical for-loop increment pattern. Otherwise, a while loop is cleaner.
+			shouldCreateForLoop = isTypicalForLoopIncrement(lastDoExprent);
+		}
+
+		if (shouldCreateForLoop) {
 			Set<Statement> set = stat.getNeighboursSet(StatEdge.TYPE_CONTINUE,
 			                                           Statement.DIRECTION_BACKWARD);
 			set.remove(lastData);
@@ -629,6 +706,50 @@ public final class MergeHelper {
 
 		cleanEmptyStatements(stat,
 		                     lastData);
+	}
+
+	/**
+	 * Checks if the expression is a typical for-loop increment pattern.
+	 * This includes post/pre increment/decrement operations (i++, ++i, i--, --i)
+	 * and compound assignments with addition/subtraction (i += n, i -= n).
+	 * When converting to a for loop without an initializer, we only want to use
+	 * typical increment patterns to produce cleaner output than a while loop.
+	 *
+	 * @param exprent the expression to check
+	 * @return true if the expression is a typical for-loop increment
+	 */
+	private static boolean isTypicalForLoopIncrement(Exprent exprent) {
+		if (exprent == null) {
+			return false;
+		}
+
+		// Check for function expressions (++, --, etc.)
+		if (exprent.type == Exprent.EXPRENT_FUNCTION) {
+			FunctionExprent func = (FunctionExprent) exprent;
+			int funcType = func.getFuncType();
+
+			// Post and pre increment/decrement are typical for-loop increments
+			if (funcType == FunctionExprent.FUNCTION_IPP ||  // i++
+			    funcType == FunctionExprent.FUNCTION_PPI ||  // ++i
+			    funcType == FunctionExprent.FUNCTION_IMM ||  // i--
+			    funcType == FunctionExprent.FUNCTION_MMI) {  // --i
+				return true;
+			}
+		}
+
+		// Check for compound assignment (i += n, i -= n)
+		if (exprent.type == Exprent.EXPRENT_ASSIGNMENT) {
+			AssignmentExprent assign = (AssignmentExprent) exprent;
+			int condType = assign.getCondType();
+
+			// Compound addition or subtraction assignments are typical increments
+			if (condType == FunctionExprent.FUNCTION_ADD ||  // +=
+			    condType == FunctionExprent.FUNCTION_SUB) {  // -=
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private static void cleanEmptyStatements(DoStatement dostat,
