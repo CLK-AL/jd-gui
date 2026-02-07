@@ -479,276 +479,428 @@ public final class IfHelper {
 		return res;
 	}
 
-	// FIXME: rewrite the entire method!!! keep in mind finally exits!!
+	// ===========================================================================================
+	// If Statement Reordering
+	// ===========================================================================================
+	//
+	// This section handles reordering of if statements to improve decompiled code structure.
+	// The goal is to transform patterns like:
+	//   if (cond) { ... }
+	//   stmt1; stmt2; ...
+	// Into proper if-else structures when the control flow allows it.
+	//
+	// IMPORTANT: Finally exits require special handling because they represent control flow
+	// that exits through a finally block, which should be treated as a direct path.
+	// ===========================================================================================
+
+	/**
+	 * Context class to hold all state information for the reorderIf operation.
+	 * This encapsulates the various flags and computed values needed during reordering.
+	 */
+	private static class ReorderContext {
+		final IfStatement ifstat;
+		final Statement parent;
+		final Statement from;
+		final Statement next;
+		final Statement last;
+
+		// Flags indicating whether if/else branches exist
+		boolean noIfStat;
+		boolean noElseStat;
+
+		// Flags indicating direct control flow paths
+		boolean ifDirect;
+		boolean elseDirect;
+
+		// Flags indicating indirect paths through the statement graph
+		boolean ifDirectPath;
+		boolean elseDirectPath;
+
+		ReorderContext(IfStatement ifstat) {
+			this.ifstat = ifstat;
+			this.parent = ifstat.getParent();
+			this.from = (parent.type == Statement.TYPE_SEQUENCE) ? parent : ifstat;
+			this.next = getNextStatement(from);
+			this.last = (parent.type == Statement.TYPE_SEQUENCE)
+			            ? parent.getStats().getLast()
+			            : ifstat;
+			this.noElseStat = (last == ifstat);
+		}
+
+		/**
+		 * Checks if both branches can form a complete if-then-else structure.
+		 */
+		boolean canFormIfElse() {
+			return (ifDirect || ifDirectPath)
+			       && (elseDirect || elseDirectPath)
+			       && !noIfStat
+			       && !noElseStat;
+		}
+
+		/**
+		 * Checks if the structure should be reordered as if-then (with negated condition).
+		 */
+		boolean shouldReorderAsIfThen() {
+			return ifDirect
+			       && (!elseDirect || (noIfStat && !noElseStat))
+			       && !ifstat.getAllSuccessorEdges().isEmpty();
+		}
+	}
+
+	/**
+	 * Reorders an if statement to improve the decompiled code structure.
+	 *
+	 * This method attempts to transform simple if statements into proper if-else
+	 * structures when the control flow allows it. It handles two main cases:
+	 * 1. If-then-else: Both branches have direct paths to continuation
+	 * 2. If-then: Only the if branch has a direct path, requiring condition negation
+	 *
+	 * @param ifstat the if statement to potentially reorder
+	 * @return true if any reordering was performed, false otherwise
+	 */
 	private static boolean reorderIf(IfStatement ifstat) {
+		// Only process simple if statements (not if-else)
 		if (ifstat.iftype == IfStatement.IFTYPE_IFELSE) {
 			return false;
 		}
 
-		boolean ifdirect, elsedirect;
-		boolean noifstat     = false, noelsestat;
-		boolean ifdirectpath = false, elsedirectpath = false;
+		// Initialize the context with all necessary state
+		ReorderContext ctx = new ReorderContext(ifstat);
 
-		Statement parent = ifstat.getParent();
-		Statement from = parent.type == Statement.TYPE_SEQUENCE
-		                 ? parent
-		                 : ifstat;
+		// Compute direct path flags for if and else branches
+		computeDirectPathFlags(ctx);
 
-		Statement next = getNextStatement(from);
-
-		if (ifstat.getIfstat() == null) {
-			noifstat = true;
-
-			ifdirect = ifstat.getIfEdge()
-			                 .getType() == StatEdge.TYPE_FINALLYEXIT || MergeHelper.isDirectPath(from,
-			                                                                                     ifstat.getIfEdge()
-			                                                                                           .getDestination());
-		} else {
-			List<StatEdge> lstSuccs = ifstat.getIfstat()
-			                                .getAllSuccessorEdges();
-			ifdirect = !lstSuccs.isEmpty()
-			           && lstSuccs.get(0)
-			                      .getType() == StatEdge.TYPE_FINALLYEXIT || hasDirectEndEdge(ifstat.getIfstat(),
-			                                                                                  from);
-		}
-
-		Statement last = parent.type == Statement.TYPE_SEQUENCE
-		                 ? parent.getStats()
-		                         .getLast()
-		                 : ifstat;
-		noelsestat = (last == ifstat);
-
-		elsedirect = !last.getAllSuccessorEdges()
-		                  .isEmpty()
-		             && last.getAllSuccessorEdges()
-		                    .get(0)
-		                    .getType() == StatEdge.TYPE_FINALLYEXIT || hasDirectEndEdge(last,
-		                                                                                from);
-
+		// Validate that we have successors
 		List<StatEdge> successors = ifstat.getAllSuccessorEdges();
-
 		if (successors.isEmpty()) {
-			// Can't have no successors- something went wrong horribly somewhere!
 			throw new IllegalStateException("If statement " + ifstat + " has no successors!");
 		}
 
-		if (!noelsestat && existsPath(ifstat,
-		                              successors.get(0)
-		                                        .getDestination())) {
+		// Check for circular path that would prevent reordering
+		if (!ctx.noElseStat && existsPath(ifstat, successors.get(0).getDestination())) {
 			return false;
 		}
 
-		if (!ifdirect && !noifstat) {
-			ifdirectpath = existsPath(ifstat,
-			                          next);
+		// Compute indirect path flags
+		computeIndirectPathFlags(ctx);
+
+		// Attempt reordering based on the computed flags
+		if (ctx.canFormIfElse()) {
+			return reorderAsIfElse(ctx);
+		} else if (ctx.shouldReorderAsIfThen()) {
+			return reorderAsIfThen(ctx);
 		}
 
-		if (!elsedirect && !noelsestat) {
-			SequenceStatement sequence = (SequenceStatement) parent;
+		return false;
+	}
 
-			for (int i = sequence.getStats()
-			                     .size() - 1;
-			     i >= 0;
-			     i--) {
-				Statement sttemp = sequence.getStats()
-				                           .get(i);
-				if (sttemp == ifstat) {
-					break;
-				} else if (existsPath(sttemp,
-				                      next)) {
-					elsedirectpath = true;
-					break;
-				}
-			}
-		}
-
-		if ((ifdirect || ifdirectpath) && (elsedirect || elsedirectpath) && !noifstat && !noelsestat) {  // if - then -
-			// else
-
-			SequenceStatement sequence = (SequenceStatement) parent;
-
-			// build and cut the new else statement
-			List<Statement> lst = new ArrayList<>();
-			for (int i = sequence.getStats()
-			                     .size() - 1;
-			     i >= 0;
-			     i--) {
-				Statement sttemp = sequence.getStats()
-				                           .get(i);
-				if (sttemp == ifstat) {
-					break;
-				} else {
-					lst.add(0,
-					        sttemp);
-				}
-			}
-
-			Statement stelse;
-			if (lst.size() == 1) {
-				stelse = lst.get(0);
-			} else {
-				stelse = new SequenceStatement(lst);
-				stelse.setAllParent();
-			}
-
-			ifstat.removeSuccessor(ifstat.getAllSuccessorEdges()
-			                             .get(0));
-			for (Statement st : lst) {
-				sequence.getStats()
-				        .removeWithKey(st.id);
-			}
-
-			StatEdge elseedge = new StatEdge(StatEdge.TYPE_REGULAR,
-			                                 ifstat.getFirst(),
-			                                 stelse);
-			ifstat.getFirst()
-			      .addSuccessor(elseedge);
-			ifstat.setElsestat(stelse);
-			ifstat.setElseEdge(elseedge);
-
-			ifstat.getStats()
-			      .addWithKey(stelse,
-			                  stelse.id);
-			stelse.setParent(ifstat);
-
-			//			if(next.type != Statement.TYPE_DUMMYEXIT && (ifdirect || elsedirect)) {
-			//	 			StatEdge breakedge = new StatEdge(StatEdge.TYPE_BREAK, ifstat, next);
-			//				sequence.addLabeledEdge(breakedge);
-			//				ifstat.addSuccessor(breakedge);
-			//			}
-
-			ifstat.iftype = IfStatement.IFTYPE_IFELSE;
-		} else if (ifdirect && (!elsedirect || (noifstat && !noelsestat)) && !ifstat.getAllSuccessorEdges()
-		                                                                            .isEmpty()) {  // if - then
-			// negate the if condition
-			IfExprent statexpr = ifstat.getHeadexprent();
-			statexpr.setCondition(new FunctionExprent(FunctionExprent.FUNCTION_BOOL_NOT,
-			                                          statexpr.getCondition(),
-			                                          null));
-
-			if (noelsestat) {
-				StatEdge ifedge = ifstat.getIfEdge();
-				StatEdge elseedge = ifstat.getAllSuccessorEdges()
-				                          .get(0);
-
-				if (noifstat) {
-					ifstat.getFirst()
-					      .removeSuccessor(ifedge);
-					ifstat.removeSuccessor(elseedge);
-
-					ifedge.setSource(ifstat);
-					elseedge.setSource(ifstat.getFirst());
-
-					ifstat.addSuccessor(ifedge);
-					ifstat.getFirst()
-					      .addSuccessor(elseedge);
-
-					ifstat.setIfEdge(elseedge);
-				} else {
-					Statement ifbranch = ifstat.getIfstat();
-					SequenceStatement newseq = new SequenceStatement(Arrays.asList(ifstat,
-					                                                               ifbranch));
-
-					ifstat.getFirst()
-					      .removeSuccessor(ifedge);
-					ifstat.getStats()
-					      .removeWithKey(ifbranch.id);
-					ifstat.setIfstat(null);
-
-					ifstat.removeSuccessor(elseedge);
-					elseedge.setSource(ifstat.getFirst());
-					ifstat.getFirst()
-					      .addSuccessor(elseedge);
-
-					ifstat.setIfEdge(elseedge);
-
-					ifstat.getParent()
-					      .replaceStatement(ifstat,
-					                        newseq);
-					newseq.setAllParent();
-
-					ifstat.addSuccessor(new StatEdge(StatEdge.TYPE_REGULAR,
-					                                 ifstat,
-					                                 ifbranch));
-				}
-			} else {
-
-				SequenceStatement sequence = (SequenceStatement) parent;
-
-				// build and cut the new else statement
-				List<Statement> lst = new ArrayList<>();
-				for (int i = sequence.getStats()
-				                     .size() - 1;
-				     i >= 0;
-				     i--) {
-					Statement sttemp = sequence.getStats()
-					                           .get(i);
-					if (sttemp == ifstat) {
-						break;
-					} else {
-						lst.add(0,
-						        sttemp);
-					}
-				}
-
-				Statement stelse;
-				if (lst.size() == 1) {
-					stelse = lst.get(0);
-				} else {
-					stelse = new SequenceStatement(lst);
-					stelse.setAllParent();
-				}
-
-				ifstat.removeSuccessor(ifstat.getAllSuccessorEdges()
-				                             .get(0));
-				for (Statement st : lst) {
-					sequence.getStats()
-					        .removeWithKey(st.id);
-				}
-
-				if (noifstat) {
-					StatEdge ifedge = ifstat.getIfEdge();
-
-					ifstat.getFirst()
-					      .removeSuccessor(ifedge);
-					ifedge.setSource(ifstat);
-					ifstat.addSuccessor(ifedge);
-				} else {
-					Statement ifbranch = ifstat.getIfstat();
-
-					ifstat.getFirst()
-					      .removeSuccessor(ifstat.getIfEdge());
-					ifstat.getStats()
-					      .removeWithKey(ifbranch.id);
-
-					ifstat.addSuccessor(new StatEdge(StatEdge.TYPE_REGULAR,
-					                                 ifstat,
-					                                 ifbranch));
-
-					sequence.getStats()
-					        .addWithKey(ifbranch,
-					                    ifbranch.id);
-					ifbranch.setParent(sequence);
-				}
-
-				StatEdge newifedge = new StatEdge(StatEdge.TYPE_REGULAR,
-				                                  ifstat.getFirst(),
-				                                  stelse);
-				ifstat.getFirst()
-				      .addSuccessor(newifedge);
-				ifstat.setIfstat(stelse);
-				ifstat.setIfEdge(newifedge);
-
-				ifstat.getStats()
-				      .addWithKey(stelse,
-				                  stelse.id);
-				stelse.setParent(ifstat);
-			}
+	/**
+	 * Computes whether the if and else branches have direct control flow paths.
+	 *
+	 * A direct path exists when:
+	 * - The edge type is FINALLYEXIT (exits through finally block)
+	 * - Or there's a direct path from the source to the destination
+	 */
+	private static void computeDirectPathFlags(ReorderContext ctx) {
+		// Compute if-branch direct flag
+		if (ctx.ifstat.getIfstat() == null) {
+			ctx.noIfStat = true;
+			StatEdge ifEdge = ctx.ifstat.getIfEdge();
+			// Finally exits are always considered direct paths
+			ctx.ifDirect = isFinallyExit(ifEdge)
+			               || MergeHelper.isDirectPath(ctx.from, ifEdge.getDestination());
 		} else {
-			return false;
+			List<StatEdge> ifSuccessors = ctx.ifstat.getIfstat().getAllSuccessorEdges();
+			// Check if the if-branch's successor is a finally exit or has a direct end edge
+			ctx.ifDirect = (!ifSuccessors.isEmpty() && isFinallyExit(ifSuccessors.get(0)))
+			               || hasDirectEndEdge(ctx.ifstat.getIfstat(), ctx.from);
 		}
+
+		// Compute else-branch direct flag
+		List<StatEdge> lastSuccessors = ctx.last.getAllSuccessorEdges();
+		ctx.elseDirect = (!lastSuccessors.isEmpty() && isFinallyExit(lastSuccessors.get(0)))
+		                 || hasDirectEndEdge(ctx.last, ctx.from);
+	}
+
+	/**
+	 * Checks if an edge represents a finally exit.
+	 */
+	private static boolean isFinallyExit(StatEdge edge) {
+		return edge != null && edge.getType() == StatEdge.TYPE_FINALLYEXIT;
+	}
+
+	/**
+	 * Computes indirect path flags by checking if paths exist through the statement graph.
+	 */
+	private static void computeIndirectPathFlags(ReorderContext ctx) {
+		// Check for indirect if-branch path
+		if (!ctx.ifDirect && !ctx.noIfStat) {
+			ctx.ifDirectPath = existsPath(ctx.ifstat, ctx.next);
+		}
+
+		// Check for indirect else-branch path by scanning sequence statements
+		if (!ctx.elseDirect && !ctx.noElseStat) {
+			SequenceStatement sequence = (SequenceStatement) ctx.parent;
+			ctx.elseDirectPath = hasIndirectElsePath(sequence, ctx.ifstat, ctx.next);
+		}
+	}
+
+	/**
+	 * Checks if there's an indirect path from any statement after the if to the next statement.
+	 */
+	private static boolean hasIndirectElsePath(SequenceStatement sequence, IfStatement ifstat, Statement next) {
+		List<Statement> stats = sequence.getStats();
+		for (int i = stats.size() - 1; i >= 0; i--) {
+			Statement current = stats.get(i);
+			if (current == ifstat) {
+				break;
+			}
+			if (existsPath(current, next)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Reorders the if statement into a proper if-then-else structure.
+	 *
+	 * This is used when both branches have direct (or indirect) paths to continuation,
+	 * allowing us to form a complete if-else structure.
+	 */
+	private static boolean reorderAsIfElse(ReorderContext ctx) {
+		SequenceStatement sequence = (SequenceStatement) ctx.parent;
+
+		// Extract statements that will form the else branch
+		List<Statement> elseStatements = extractStatementsAfterIf(sequence, ctx.ifstat);
+
+		// Build the else statement (single statement or sequence)
+		Statement elseStatement = buildElseStatement(elseStatements);
+
+		// Disconnect the if statement from its current successor
+		ctx.ifstat.removeSuccessor(ctx.ifstat.getAllSuccessorEdges().get(0));
+
+		// Remove the else statements from the sequence
+		removeStatementsFromSequence(sequence, elseStatements);
+
+		// Connect the else branch to the if statement
+		attachElseBranch(ctx.ifstat, elseStatement);
+
+		// Mark as if-else type
+		ctx.ifstat.iftype = IfStatement.IFTYPE_IFELSE;
 
 		return true;
+	}
+
+	/**
+	 * Reorders the if statement by negating the condition (if-then case).
+	 *
+	 * This is used when the if branch has a direct path but the else doesn't,
+	 * requiring us to negate the condition and swap the branches.
+	 */
+	private static boolean reorderAsIfThen(ReorderContext ctx) {
+		// Negate the if condition
+		negateIfCondition(ctx.ifstat);
+
+		if (ctx.noElseStat) {
+			return reorderWithNoElseStat(ctx);
+		} else {
+			return reorderWithElseStat(ctx);
+		}
+	}
+
+	/**
+	 * Negates the condition of an if statement.
+	 */
+	private static void negateIfCondition(IfStatement ifstat) {
+		IfExprent headExpr = ifstat.getHeadexprent();
+		headExpr.setCondition(new FunctionExprent(
+			FunctionExprent.FUNCTION_BOOL_NOT,
+			headExpr.getCondition(),
+			null
+		));
+	}
+
+	/**
+	 * Handles reordering when there's no else statement (if is last in sequence).
+	 */
+	private static boolean reorderWithNoElseStat(ReorderContext ctx) {
+		StatEdge ifEdge = ctx.ifstat.getIfEdge();
+		StatEdge elseEdge = ctx.ifstat.getAllSuccessorEdges().get(0);
+
+		if (ctx.noIfStat) {
+			// No if body: just swap the edges
+			swapIfAndElseEdges(ctx.ifstat, ifEdge, elseEdge);
+		} else {
+			// Has if body: extract it and create sequence
+			extractIfBodyToSequence(ctx.ifstat, ifEdge, elseEdge);
+		}
+		return true;
+	}
+
+	/**
+	 * Swaps the if and else edges when there's no if body.
+	 */
+	private static void swapIfAndElseEdges(IfStatement ifstat, StatEdge ifEdge, StatEdge elseEdge) {
+		ifstat.getFirst().removeSuccessor(ifEdge);
+		ifstat.removeSuccessor(elseEdge);
+
+		ifEdge.setSource(ifstat);
+		elseEdge.setSource(ifstat.getFirst());
+
+		ifstat.addSuccessor(ifEdge);
+		ifstat.getFirst().addSuccessor(elseEdge);
+
+		ifstat.setIfEdge(elseEdge);
+	}
+
+	/**
+	 * Extracts the if body and creates a sequence statement.
+	 */
+	private static void extractIfBodyToSequence(IfStatement ifstat, StatEdge ifEdge, StatEdge elseEdge) {
+		Statement ifBranch = ifstat.getIfstat();
+		SequenceStatement newSequence = new SequenceStatement(Arrays.asList(ifstat, ifBranch));
+
+		// Disconnect the if body
+		ifstat.getFirst().removeSuccessor(ifEdge);
+		ifstat.getStats().removeWithKey(ifBranch.id);
+		ifstat.setIfstat(null);
+
+		// Redirect the else edge to become the if edge
+		ifstat.removeSuccessor(elseEdge);
+		elseEdge.setSource(ifstat.getFirst());
+		ifstat.getFirst().addSuccessor(elseEdge);
+		ifstat.setIfEdge(elseEdge);
+
+		// Replace in parent and set up the sequence
+		ifstat.getParent().replaceStatement(ifstat, newSequence);
+		newSequence.setAllParent();
+
+		// Connect if statement to the extracted branch
+		ifstat.addSuccessor(new StatEdge(StatEdge.TYPE_REGULAR, ifstat, ifBranch));
+	}
+
+	/**
+	 * Handles reordering when there are statements after the if (else exists).
+	 */
+	private static boolean reorderWithElseStat(ReorderContext ctx) {
+		SequenceStatement sequence = (SequenceStatement) ctx.parent;
+
+		// Extract statements that will form the new if body
+		List<Statement> elseStatements = extractStatementsAfterIf(sequence, ctx.ifstat);
+
+		// Build the new if body
+		Statement newIfBody = buildElseStatement(elseStatements);
+
+		// Disconnect the if statement from its current successor
+		ctx.ifstat.removeSuccessor(ctx.ifstat.getAllSuccessorEdges().get(0));
+
+		// Remove the statements from the sequence
+		removeStatementsFromSequence(sequence, elseStatements);
+
+		// Handle the original if body (move it to sequence)
+		if (ctx.noIfStat) {
+			moveIfEdgeToStatement(ctx.ifstat);
+		} else {
+			moveIfBodyToSequence(ctx.ifstat, sequence);
+		}
+
+		// Attach the new if body
+		attachIfBranch(ctx.ifstat, newIfBody);
+
+		return true;
+	}
+
+	/**
+	 * Moves the if edge to the statement level when there's no if body.
+	 */
+	private static void moveIfEdgeToStatement(IfStatement ifstat) {
+		StatEdge ifEdge = ifstat.getIfEdge();
+		ifstat.getFirst().removeSuccessor(ifEdge);
+		ifEdge.setSource(ifstat);
+		ifstat.addSuccessor(ifEdge);
+	}
+
+	/**
+	 * Moves the if body to the parent sequence.
+	 */
+	private static void moveIfBodyToSequence(IfStatement ifstat, SequenceStatement sequence) {
+		Statement ifBranch = ifstat.getIfstat();
+
+		ifstat.getFirst().removeSuccessor(ifstat.getIfEdge());
+		ifstat.getStats().removeWithKey(ifBranch.id);
+
+		ifstat.addSuccessor(new StatEdge(StatEdge.TYPE_REGULAR, ifstat, ifBranch));
+
+		sequence.getStats().addWithKey(ifBranch, ifBranch.id);
+		ifBranch.setParent(sequence);
+	}
+
+	/**
+	 * Attaches a statement as the if branch.
+	 */
+	private static void attachIfBranch(IfStatement ifstat, Statement body) {
+		StatEdge newIfEdge = new StatEdge(StatEdge.TYPE_REGULAR, ifstat.getFirst(), body);
+		ifstat.getFirst().addSuccessor(newIfEdge);
+		ifstat.setIfstat(body);
+		ifstat.setIfEdge(newIfEdge);
+
+		ifstat.getStats().addWithKey(body, body.id);
+		body.setParent(ifstat);
+	}
+
+	/**
+	 * Extracts all statements from a sequence that come after the specified if statement.
+	 */
+	private static List<Statement> extractStatementsAfterIf(SequenceStatement sequence, IfStatement ifstat) {
+		List<Statement> result = new ArrayList<>();
+		List<Statement> stats = sequence.getStats();
+
+		for (int i = stats.size() - 1; i >= 0; i--) {
+			Statement current = stats.get(i);
+			if (current == ifstat) {
+				break;
+			}
+			result.add(0, current);
+		}
+
+		return result;
+	}
+
+	/**
+	 * Builds an else statement from a list of statements.
+	 * Returns the single statement if only one, otherwise wraps in a SequenceStatement.
+	 */
+	private static Statement buildElseStatement(List<Statement> statements) {
+		if (statements.size() == 1) {
+			return statements.get(0);
+		}
+
+		SequenceStatement sequence = new SequenceStatement(statements);
+		sequence.setAllParent();
+		return sequence;
+	}
+
+	/**
+	 * Removes a list of statements from a sequence.
+	 */
+	private static void removeStatementsFromSequence(SequenceStatement sequence, List<Statement> statements) {
+		for (Statement st : statements) {
+			sequence.getStats().removeWithKey(st.id);
+		}
+	}
+
+	/**
+	 * Attaches a statement as the else branch of an if statement.
+	 */
+	private static void attachElseBranch(IfStatement ifstat, Statement elseStatement) {
+		StatEdge elseEdge = new StatEdge(StatEdge.TYPE_REGULAR, ifstat.getFirst(), elseStatement);
+		ifstat.getFirst().addSuccessor(elseEdge);
+		ifstat.setElsestat(elseStatement);
+		ifstat.setElseEdge(elseEdge);
+
+		ifstat.getStats().addWithKey(elseStatement, elseStatement.id);
+		elseStatement.setParent(ifstat);
 	}
 
 	private static boolean hasDirectEndEdge(Statement stat,
